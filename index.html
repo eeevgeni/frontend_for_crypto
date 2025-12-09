@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>ERC-20 Token Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- ✅ 1. Подключение ethers.js — ОБЯЗАТЕЛЬНО ПЕРЕД ЛЮБЫМ JS-КОДОМ -->
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.1/ethers.umd.min.js"
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  ></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .app {
+      max-width: 960px;
+      width: 100%;
+      padding: 24px;
+    }
+    h1 { margin-top: 0; font-size: 28px; }
+    .card {
+      background: #020617;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      border: 1px solid #1f2937;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.7);
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; }
+    .row > div { flex: 1 1 220px; }
+    input {
+      width: 100%; padding: 8px 10px;
+      border-radius: 10px; border: 1px solid #4b5563;
+      background: #020617; color: #e5e7eb;
+      font-size: 14px; margin-bottom: 10px;
+    }
+    button {
+      border: none; border-radius: 999px;
+      padding: 8px 14px;
+      background: #38bdf8; color: #020617;
+      font-size: 14px; font-weight: 500;
+      cursor: pointer; margin-right: 8px; margin-top: 6px;
+    }
+    button.secondary { background:#111827; color:#e5e7eb; border:1px solid #4b5563; }
+    button.warn { background:#f97316; color:#111827; }
+    .status { font-size: 14px; margin-top: 8px; }
+    .status.error { color:#ff6b6b; }
+    .status.ok { color:#4ade80; }
+    .token-logo-preview {
+      width: 36px; height: 36px;
+      border-radius: 8px; border: 1px solid #4b5563;
+      object-fit: contain; margin-left: 8px;
+    }
+  </style>
+</head>
+
+<body>
+<div class="app">
+  <h1>ERC-20 Token Dashboard</h1>
+
+  <!-- Подключение MetaMask -->
+  <div class="card">
+    <div><strong>MetaMask</strong></div>
+    <div>Аккаунт: <span id="accountAddress">—</span></div>
+    <div>Сеть: <span id="chainId">—</span></div>
+    <button id="connectButton">Подключить MetaMask</button>
+    <div class="status" id="globalStatus"></div>
+  </div>
+
+  <!-- Настройки токена -->
+  <div class="card">
+    <strong>Токен</strong>
+
+    <label>Адрес токена</label>
+    <input id="tokenAddress" placeholder="0x..." />
+
+    <label>URL логотипа</label>
+    <input id="tokenLogoUrl" placeholder="https://…/logo.png" />
+    <img id="tokenLogoPreview" class="token-logo-preview" alt="logo" />
+
+    <button id="loadTokenButton" class="secondary">Загрузить данные токена</button>
+    <button id="addToMetaMaskButton">Добавить токен в MetaMask</button>
+
+    <div class="status" id="tokenStatus"></div>
+  </div>
+
+  <!-- Информация -->
+  <div class="card">
+    <strong>Информация о токене</strong>
+    <div>Name: <span id="tokenName">—</span></div>
+    <div>Symbol: <span id="tokenSymbol">—</span></div>
+    <div>Decimals: <span id="tokenDecimals">—</span></div>
+    <div>Total Supply: <span id="tokenTotalSupply">—</span></div>
+    <div>Твой баланс: <span id="tokenBalance">—</span></div>
+  </div>
+
+  <!-- Transfer -->
+  <div class="card">
+    <strong>Transfer</strong>
+
+    <label>Получатель</label>
+    <input id="transferTo" placeholder="0x..." />
+
+    <label>Сумма (0.01)</label>
+    <input id="transferAmount" placeholder="0.01" />
+
+    <button id="transferButton" class="warn">Отправить</button>
+    <div class="status" id="transferStatus"></div>
+  </div>
+
+  <!-- Approve -->
+  <div class="card">
+    <strong>Approve</strong>
+
+    <label>Spender</label>
+    <input id="approveSpender" placeholder="0x..." />
+
+    <label>Сумма</label>
+    <input id="approveAmount" placeholder="100" />
+
+    <button id="approveButton" class="secondary">Approve</button>
+    <div class="status" id="approveStatus"></div>
+  </div>
+</div>
+
+<!-- ✅ 2. Весь твой JS-код — ПОСЛЕ ethers.js -->
+<script>
+  console.log("ethers loaded =", typeof ethers); // Должно быть "object"
+
+  const ERC20_ABI = [
+    "function name() view returns (string)",
+    "function symbol() view returns (string)",
+    "function decimals() view returns (uint8)",
+    "function totalSupply() view returns (uint256)",
+    "function balanceOf(address owner) view returns (uint256)",
+    "function transfer(address to, uint256 amount) returns (bool)",
+    "function approve(address spender, uint256 amount) returns (bool)"
+  ];
+
+  let provider = null;
+  let signer = null;
+  let tokenContract = null;
+  let currentAccount = null;
+  let tokenDecimals = null;
+  let tokenSymbol = null;
+
+  const $ = (id) => document.getElementById(id);
+
+  function status(el, msg, type) {
+    el.textContent = msg;
+    el.className = "status " + (type || "");
+  }
+
+  // Подключение MetaMask
+  async function connectWallet() {
+    if (!window.ethereum) return status($("globalStatus"), "MetaMask не найден", "error");
+
+    try {
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = provider.getSigner();
+      currentAccount = await signer.getAddress();
+
+      const net = await provider.getNetwork();
+      $("accountAddress").textContent = currentAccount;
+      $("chainId").textContent = net.chainId;
+
+      status($("globalStatus"), "Кошелек подключен", "ok");
+
+    } catch (e) {
+      status($("globalStatus"), "Ошибка подключения: " + e.message, "error");
+    }
+  }
+
+  // Загрузка данных токена
+  async function loadToken() {
+    try {
+      const address = $("tokenAddress").value.trim();
+      const logo = $("tokenLogoUrl").value.trim();
+
+      $("tokenLogoPreview").src = logo;
+
+      tokenContract = new ethers.Contract(address, ERC20_ABI, provider);
+      const name = await tokenContract.name();
+      const symbol = await tokenContract.symbol();
+      const decimals = await tokenContract.decimals();
+      const supply = await tokenContract.totalSupply();
+
+      tokenDecimals = decimals;
+      tokenSymbol = symbol;
+
+      $("tokenName").textContent = name;
+      $("tokenSymbol").textContent = symbol;
+      $("tokenDecimals").textContent = decimals;
+      $("tokenTotalSupply").textContent =
+        ethers.utils.formatUnits(supply, decimals) + " " + symbol;
+
+      if (currentAccount) {
+        const bal = await tokenContract.balanceOf(currentAccount);
+        $("tokenBalance").textContent =
+          ethers.utils.formatUnits(bal, decimals) + " " + symbol;
+      }
+
+      status($("tokenStatus"), "Данные токена загружены", "ok");
+
+    } catch (e) {
+      status($("tokenStatus"), "Ошибка: " + e.message, "error");
+    }
+  }
+
+  // Добавить токен в MetaMask
+  async function addToken() {
+    try {
+      const address = $("tokenAddress").value.trim();
+      const logo = $("tokenLogoUrl").value.trim();
+
+      const res = await window.ethereum.request({
+        method: "wallet_watchAsset",
+        params: {
+          type: "ERC20",
+          options: {
+            address,
+            symbol: tokenSymbol,
+            decimals: tokenDecimals,
+            image: logo
+          }
+        }
+      });
+
+      if (res) status($("tokenStatus"), "Токен добавлен в MetaMask", "ok");
+      else status($("tokenStatus"), "Пользователь отменил", "error");
+
+    } catch (e) {
+      status($("tokenStatus"), "Ошибка: " + e.message, "error");
+    }
+  }
+
+  // Transfer
+  async function transfer() {
+    try {
+      const to = $("transferTo").value.trim();
+      const amt = $("transferAmount").value.trim();
+
+      const contract = tokenContract.connect(signer);
+      const amount = ethers.utils.parseUnits(amt, tokenDecimals);
+
+      const tx = await contract.transfer(to, amount);
+      status($("transferStatus"), "Отправлено: " + tx.hash, "ok");
+
+    } catch (e) {
+      status($("transferStatus"), "Ошибка: " + e.message, "error");
+    }
+  }
+
+  // Approve
+  async function approve() {
+    try {
+      const spender = $("approveSpender").value.trim();
+      const amt = $("approveAmount").value.trim();
+
+      const contract = tokenContract.connect(signer);
+      const amount = ethers.utils.parseUnits(amt, tokenDecimals);
+
+      const tx = await contract.approve(spender, amount);
+      status($("approveStatus"), "Approve: " + tx.hash, "ok");
+
+    } catch (e) {
+      status($("approveStatus"), "Ошибка: " + e.message, "error");
+    }
+  }
+
+  // Навешиваем события
+  $("connectButton").onclick = connectWallet;
+  $("loadTokenButton").onclick = loadToken;
+  $("addToMetaMaskButton").onclick = addToken;
+  $("transferButton").onclick = transfer;
+  $("approveButton").onclick = approve;
+</script>
+
+</body>
+</html>
