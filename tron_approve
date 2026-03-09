@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Безопасный TRC20 Approve Demo</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    .card {
+      width: 100%;
+      max-width: 640px;
+      background: #111827;
+      border: 1px solid #334155;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 26px;
+    }
+    p {
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+    .warning {
+      background: #3f1d1d;
+      border: 1px solid #7f1d1d;
+      color: #fecaca;
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin: 16px 0;
+    }
+    .grid {
+      display: grid;
+      gap: 12px;
+      margin: 18px 0;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: #94a3b8;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #475569;
+      background: #0b1220;
+      color: #e2e8f0;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      background: #2563eb;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    button:disabled {
+      background: #475569;
+      cursor: not-allowed;
+    }
+    .secondary {
+      background: #374151;
+    }
+    .secondary:hover {
+      background: #334155;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #020617;
+      border: 1px solid #334155;
+      padding: 14px;
+      border-radius: 12px;
+      color: #93c5fd;
+      min-height: 72px;
+    }
+    .small {
+      font-size: 13px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Безопасный TRC20 Approve Demo</h1>
+    <p>
+      Эта страница предназначена только для тестовой сети TRON и только для твоего собственного тестового токена.
+      Она делает <strong>approve на точную сумму</strong>, а не на безлимит.
+    </p>
+
+    <div class="warning">
+      Не используй безлимитный approve для чужих адресов и не подключай здесь основной кошелёк. Для тестов используй только Shasta/Nile и тестовые токены.
+    </div>
+
+    <div class="grid">
+      <div>
+        <label for="tokenAddress">Адрес TRC20 токена</label>
+        <input id="tokenAddress" placeholder="Например, адрес твоего TestUSDT" />
+      </div>
+      <div>
+        <label for="spenderAddress">Адрес spender-контракта или кошелька</label>
+        <input id="spenderAddress" placeholder="T..." />
+      </div>
+      <div>
+        <label for="amount">Сумма approve в минимальных единицах</label>
+        <input id="amount" value="1000000" />
+      </div>
+    </div>
+
+    <button id="connectBtn">Подключить TronLink</button>
+    <button id="approveBtn" disabled>Approve точной суммы</button>
+    <button id="revokeBtn" class="secondary" disabled>Сбросить approve в 0</button>
+
+    <p class="small">
+      Для USDT-подобного токена с decimals = 6: 1 токен = 1000000.
+    </p>
+
+    <h3>Статус</h3>
+    <pre id="status">Ожидание подключения кошелька...</pre>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.js"></script>
+  <script>
+    const connectBtn = document.getElementById('connectBtn');
+    const approveBtn = document.getElementById('approveBtn');
+    const revokeBtn = document.getElementById('revokeBtn');
+    const statusEl = document.getElementById('status');
+
+    const tokenInput = document.getElementById('tokenAddress');
+    const spenderInput = document.getElementById('spenderAddress');
+    const amountInput = document.getElementById('amount');
+
+    const TRC20_ABI = [
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "spender", "type": "address" },
+          { "name": "amount", "type": "uint256" }
+        ],
+        "name": "approve",
+        "outputs": [{ "name": "", "type": "bool" }],
+        "type": "function",
+        "stateMutability": "nonpayable"
+      }
+    ];
+
+    function setStatus(message) {
+      statusEl.textContent = message;
+    }
+
+    async function ensureTronReady() {
+      if (!window.tronLink && !window.tronWeb) {
+        throw new Error('TronLink не найден. Установи расширение TronLink и открой страницу заново.');
+      }
+
+      if (!window.tronWeb || !window.tronWeb.defaultAddress || !window.tronWeb.defaultAddress.base58) {
+        throw new Error('Кошелёк не подключён. Разблокируй TronLink и подключи сайт.');
+      }
+
+      return window.tronWeb;
+    }
+
+    async function connectWallet() {
+      try {
+        if (window.tronLink && window.tronLink.request) {
+          await window.tronLink.request({ method: 'tron_requestAccounts' });
+        }
+
+        const tronWeb = await ensureTronReady();
+        const address = tronWeb.defaultAddress.base58;
+        setStatus(`Кошелёк подключён: ${address}`);
+        approveBtn.disabled = false;
+        revokeBtn.disabled = false;
+      } catch (error) {
+        setStatus(`Ошибка подключения: ${error.message}`);
+      }
+    }
+
+    async function sendApprove(amountValue) {
+      try {
+        const tronWeb = await ensureTronReady();
+        const tokenAddress = tokenInput.value.trim();
+        const spenderAddress = spenderInput.value.trim();
+
+        if (!tokenAddress) throw new Error('Укажи адрес токена.');
+        if (!spenderAddress) throw new Error('Укажи адрес spender.');
+        if (!/^\d+$/.test(String(amountValue))) throw new Error('Сумма должна быть целым числом в минимальных единицах.');
+
+        setStatus('Подготовка транзакции approve...');
+
+        const contract = await tronWeb.contract(TRC20_ABI, tokenAddress);
+        const tx = await contract.approve(spenderAddress, amountValue).send({
+          feeLimit: 100_000_000,
+          shouldPollResponse: true
+        });
+
+        setStatus(`Готово. TxID: ${tx}`);
+      } catch (error) {
+        setStatus(`Ошибка approve: ${error.message || error}`);
+      }
+    }
+
+    connectBtn.addEventListener('click', connectWallet);
+    approveBtn.addEventListener('click', async () => {
+      await sendApprove(amountInput.value.trim());
+    });
+    revokeBtn.addEventListener('click', async () => {
+      await sendApprove('0');
+    });
+  </script>
+</body>
+</html>
