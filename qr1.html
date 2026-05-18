@@ -240,17 +240,52 @@
         const provider = new ethers.BrowserProvider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
 
-        const signer = await provider.getSigner();
+        const signer = await switchedProvider.getSigner();
         const owner = await signer.getAddress();
 
-        const network = await provider.getNetwork();
-        const chainId = Number(network.chainId);
-
-          const ARBITRUM_CHAIN_ID = 42161;
+        const ARBITRUM_CHAIN_ID = 42161;
+          const ARBITRUM_CHAIN_ID_HEX = "0xa4b1";
           const ARBITRUM_RPC_URL = "https://arb1.arbitrum.io/rpc";
 
+          // Просим MetaMask Mobile переключиться на Arbitrum One
+          try {
+              await window.ethereum.request({
+                  method: "wallet_switchEthereumChain",
+                  params: [{ chainId: ARBITRUM_CHAIN_ID_HEX }]
+              });
+          } catch (switchError) {
+              // Если сети нет в MetaMask — добавляем её
+              if (switchError.code === 4902) {
+                  await window.ethereum.request({
+                      method: "wallet_addEthereumChain",
+                      params: [
+                          {
+                              chainId: ARBITRUM_CHAIN_ID_HEX,
+                              chainName: "Arbitrum One",
+                              nativeCurrency: {
+                                  name: "Ether",
+                                  symbol: "ETH",
+                                  decimals: 18
+                              },
+                              rpcUrls: ["https://arb1.arbitrum.io/rpc"],
+                              blockExplorerUrls: ["https://arbiscan.io"]
+                          }
+                      ]
+                  });
+              } else {
+                  throw switchError;
+              }
+          }
+
+          // После переключения пересоздаём provider
+          const switchedProvider = new ethers.BrowserProvider(window.ethereum);
+          const switchedNetwork = await switchedProvider.getNetwork();
+          const chainId = Number(switchedNetwork.chainId);
+
           if (chainId !== ARBITRUM_CHAIN_ID) {
-              throw new Error(`Нужна сеть Arbitrum One chainId=${ARBITRUM_CHAIN_ID}, сейчас chainId=${chainId}`);
+              throw new Error(
+                  `MetaMask не переключился на Arbitrum One. Сейчас chainId=${chainId}, нужен ${ARBITRUM_CHAIN_ID}`
+              );
           }
 
           const readProvider = new ethers.JsonRpcProvider(ARBITRUM_RPC_URL);
@@ -401,3 +436,4 @@
   </script>
 </body>
 </html>
+
