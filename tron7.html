@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Trust Wallet + Tron Network Demo</title>
+    <!-- TronWeb CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.1/dist/TronWeb.js"></script>
+    <!-- TronWallet Adapter для Trust Wallet (необходим для корректного определения провайдера) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tronweb3/tronwallet-adapter-trust@1.0.2/dist/index.umd.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #0a0f1e 0%, #0d1525 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .card {
+            background: rgba(22, 32, 50, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 28px;
+            padding: 32px 24px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 25px 45px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.05);
+            transition: all 0.3s ease;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #fff, #3b82f6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .sub {
+            text-align: center;
+            color: #8e9aaf;
+            font-size: 14px;
+            margin-bottom: 32px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 16px;
+        }
+
+        .wallet-info {
+            background: #0e1424;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 24px;
+            border: 1px solid #2a3448;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #1e293b;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 10px;
+            background: #475569;
+            display: inline-block;
+        }
+
+        .status-dot.connected {
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+        }
+
+        .address {
+            background: #0a0f1a;
+            padding: 12px 16px;
+            border-radius: 16px;
+            font-family: monospace;
+            font-size: 14px;
+            color: #a5b4fc;
+            word-break: break-all;
+            margin: 12px 0;
+            border: 1px solid #2d3a5e;
+        }
+
+        .network {
+            background: #0a0f1a;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            color: #94a3b8;
+            margin-top: 8px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px 0;
+            border-radius: 60px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.2s;
+            border: none;
+            margin-top: 12px;
+            background: #2d3a5e;
+            color: white;
+        }
+
+        button.primary {
+            background: #2b6ef0;
+            box-shadow: 0 4px 12px rgba(43,110,240,0.3);
+        }
+
+        button.primary:hover {
+            background: #1a5be0;
+            transform: scale(1.01);
+        }
+
+        button.danger {
+            background: #3b2a44;
+            color: #f472b6;
+        }
+
+        button.danger:hover {
+            background: #4a2f5a;
+        }
+
+        .tx-section {
+            margin-top: 28px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 24px;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 6px;
+            color: #b9c3db;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 14px 16px;
+            background: #0e1424;
+            border: 1px solid #2a3448;
+            border-radius: 20px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        input:focus, select:focus {
+            border-color: #3b82f6;
+        }
+
+        .tx-result {
+            background: #0a0f1a;
+            padding: 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            color: #86efac;
+            margin-top: 16px;
+            word-break: break-all;
+            font-family: monospace;
+        }
+
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        footer {
+            text-align: center;
+            font-size: 11px;
+            color: #4b556b;
+            margin-top: 24px;
+        }
+    </style>
+</head>
+<body>
+<div class="card" id="app">
+    <h1>⚡ Trust Wallet</h1>
+    <div class="sub">Tron Network Integration</div>
+
+    <!-- Статус и подключение -->
+    <div class="wallet-info">
+        <div class="status-badge" id="statusBadge">
+            <span class="status-dot" id="statusDot"></span>
+            <span id="statusText">Отключён</span>
+        </div>
+        <div id="addressDisplay" class="address">—</div>
+        <div id="networkDisplay" class="network">🌐 Сеть: не определена</div>
+
+        <button id="connectBtn" class="primary">🔗 Подключить Trust Wallet</button>
+        <button id="disconnectBtn" class="danger" style="display: none;">❌ Отключить</button>
+    </div>
+
+    <!-- Блок транзакций (доступен только после подключения) -->
+    <div id="txPanel" style="display: none;" class="tx-section">
+        <div class="input-group">
+            <label>📤 Адрес получателя (TRON)</label>
+            <input type="text" id="recipientAddress" placeholder="T... или 41..." value="TNoRB9ogY9XVkf5pUEFHJyYupUg7iNkD2N">
+        </div>
+        <div class="input-group">
+            <label>💲 Количество TRX</label>
+            <input type="number" id="amountTrx" placeholder="Сумма в TRX" value="0.1" step="0.1">
+        </div>
+        <button id="sendTrxBtn" class="primary">✍️ Подписать и отправить TRX</button>
+        <div id="txResult" class="tx-result"></div>
+    </div>
+    <footer>
+        🛡️ Trust Wallet Mobile + Tron (через Browser Extension адаптер)<br>
+        Для мобильного телефона: откройте страницу в браузере и нажмите «Подключить».
+    </footer>
+</div>
+
+<script>
+    // ======================== Глобальные переменные ========================
+    let tronWebInstance = null;         // экземпляр TronWeb
+    let walletAddress = null;           // адрес кошелька
+    let currentNetwork = null;          // тип сети (Mainnet/Shasta и т.д.)
+    let trustAdapter = null;            // инстанс адаптера TrustAdapter
+    
+    // DOM элементы
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const statusText = document.getElementById('statusText');
+    const statusDot = document.getElementById('statusDot');
+    const addressDisplay = document.getElementById('addressDisplay');
+    const networkDisplay = document.getElementById('networkDisplay');
+    const txPanel = document.getElementById('txPanel');
+    const sendTrxBtn = document.getElementById('sendTrxBtn');
+    const txResultDiv = document.getElementById('txResult');
+    const recipientInput = document.getElementById('recipientAddress');
+    const amountInput = document.getElementById('amountTrx');
+    
+    // Вспомогательная функция для обновления UI статуса
+    function updateUIForConnected(connected) {
+        if (connected && walletAddress) {
+            statusText.innerText = 'Подключён (Trust)';
+            statusDot.classList.add('connected');
+            addressDisplay.innerText = walletAddress;
+            connectBtn.style.display = 'none';
+            disconnectBtn.style.display = 'block';
+            txPanel.style.display = 'block';
+        } else {
+            statusText.innerText = 'Отключён';
+            statusDot.classList.remove('connected');
+            addressDisplay.innerText = '—';
+            connectBtn.style.display = 'block';
+            disconnectBtn.style.display = 'none';
+            txPanel.style.display = 'none';
+            walletAddress = null;
+            tronWebInstance = null;
+        }
+    }
+    
+    // Функция для отображения результата (успех/ошибка)
+    function showTxResult(message, isError = false) {
+        txResultDiv.innerText = message;
+        txResultDiv.style.color = isError ? '#f87171' : '#86efac';
+        setTimeout(() => {
+            if(txResultDiv.innerText === message) {
+                // не обнуляем сразу, чтобы было видно, но через 8 секунд очистим
+                setTimeout(() => {
+                    if(txResultDiv.innerText === message) txResultDiv.innerText = '';
+                }, 8000);
+            }
+        }, 5000);
+    }
+    
+    // ======================== ИНИЦИАЛИЗАЦИЯ АДАПТЕРА ========================
+    async function initTrustAdapter() {
+        // Проверяем наличие глобального класса TrustAdapter из UMD сборки
+        if (typeof window.TrustAdapter !== 'undefined') {
+            trustAdapter = new window.TrustAdapter({
+                openUrlWhenWalletNotFound: true,      // если кошелек не установлен — открыть сайт Trust
+                openAppWithDeeplink: true,            // на мобильных устройствах использовать DeepLink (Trust App)
+                checkTimeout: 3000,
+            });
+            console.log('[ADAPTER] TrustAdapter инициализирован');
+            return true;
+        } 
+        // Альтернативно: иногда адаптер экспортируется иначе, проверяем @tronweb3/tronwallet-adapter-trust
+        else if (typeof window.tronwallet !== 'undefined' && window.tronwallet.TrustAdapter) {
+            trustAdapter = new window.tronwallet.TrustAdapter({
+                openAppWithDeeplink: true,
+            });
+            console.log('[ADAPTER] TrustAdapter (tronwallet namespace)');
+            return true;
+        }
+        else {
+            console.warn('[ADAPTER] TrustAdapter не найден, но мы можем попытаться использовать window.trustwallet напрямую');
+            // Если адаптер не загрузился, но есть прямое внедрение расширения или WalletConnect-like
+            // все равно попробуем позже в методе connect()
+            return false;
+        }
+    }
+    
+    // ======================== ПОДКЛЮЧЕНИЕ ========================
+    async function connectTrustWallet() {
+        try {
+            // Шаг 1: если адаптер не готов, пробуем инициализировать
+            if (!trustAdapter) {
+                await initTrustAdapter();
+            }
+            
+            // Шаг 2: используем адаптер для подключения
+            // @tronweb3/tronwallet-adapter-trust предоставляет метод connect(), возвращающий адрес
+            if (trustAdapter && typeof trustAdapter.connect === 'function') {
+                // Вызываем подключение: адаптер сам запросит разрешение, и на мобильных девайсах откроет Trust Wallet через deeplink
+                await trustAdapter.connect();
+                // После успешного подключения адрес доступен в свойстве adapter.address
+                const connectedAddr = trustAdapter.address;
+                if (connectedAddr && connectedAddr.startsWith('T')) {
+                    walletAddress = connectedAddr;
+                } else {
+                    walletAddress = connectedAddr;
+                }
+                
+                // Пытаемся получить сеть через adapter.network()
+                if (trustAdapter.network) {
+                    const networkInfo = await trustAdapter.network();
+                    if (networkInfo && networkInfo.networkType) {
+                        currentNetwork = networkInfo.networkType;
+                        networkDisplay.innerText = `🌐 Сеть: ${currentNetwork} (${networkInfo.chainId || ''})`;
+                    } else {
+                        networkDisplay.innerText = `🌐 Сеть: TRON (Mainnet предположительно)`;
+                    }
+                } else {
+                    networkDisplay.innerText = `🌐 Сеть: TRON (Mainnet/Shasta)`;
+                }
+                
+                // Инициализируем TronWeb используя провайдера из Trust Wallet (либо если адаптер дает tronWeb)
+                // Важно: для подписи транзакций мы будем использовать adapter.signTransaction, но TronWeb нужен для построения транзакций.
+                // Пытаемся получить tronWeb из window.trustwallet
+                if (window.trustwallet && window.trustwallet.tronLink && window.trustwallet.tronLink.tronWeb) {
+                    tronWebInstance = window.trustwallet.tronLink.tronWeb;
+                    console.log('[SUCCESS] TronWeb взят из window.trustwallet');
+                } 
+                // если нет, создаем новый инстанс TronWeb с публичной нодой Mainnet (для построения транзакций)
+                else {
+                    const fullNode = currentNetwork === 'Shasta' ? 'https://api.shasta.trongrid.io' : 'https://api.trongrid.io';
+                    const solidityNode = currentNetwork === 'Shasta' ? 'https://api.shasta.trongrid.io' : 'https://api.trongrid.io';
+                    const eventServer = currentNetwork === 'Shasta' ? 'https://api.shasta.trongrid.io' : 'https://api.trongrid.io';
+                    tronWebInstance = new TronWeb({
+                        fullHost: fullNode,
+                        solidityNode: solidityNode,
+                        eventServer: eventServer,
+                    });
+                    // Устанавливаем адрес кошелька как адрес по умолчанию (для создания транзакций)
+                    if (walletAddress) {
+                        tronWebInstance.setAddress(walletAddress);
+                    }
+                    console.log('[SUCCESS] TronWeb создан вручную');
+                }
+                
+                updateUIForConnected(true);
+                showTxResult('✅ Кошелек Trust Wallet успешно подключен!', false);
+                return true;
+            }
+            else {
+                // Fallback: Если адаптер не загрузился либо нет метода connect, пробуем старый метод через window.trustwallet
+                if (window.trustwallet && window.trustwallet.tronLink && window.trustwallet.tronLink.request) {
+                    // TronLink-совместимый метод (Trust Wallet extension/mobile поддерживает TronLink API)
+                    const accounts = await window.trustwallet.tronLink.request({ method: 'tron_requestAccounts' });
+                    if (accounts && accounts.length > 0) {
+                        walletAddress = accounts[0];
+                        tronWebInstance = window.trustwallet.tronLink.tronWeb;
+                        networkDisplay.innerText = `🌐 Сеть: TRON (через TronLink API)`;
+                        updateUIForConnected(true);
+                        showTxResult('✅ Подключено через TronLink API', false);
+                        return true;
+                    }
+                }
+                throw new Error('Trust Wallet не установлен или адаптер не поддерживает подключение. Убедитесь, что у вас установлено приложение Trust Wallet и используйте встроенный браузер (для мобильных) или расширение (для десктопа).');
+            }
+        } catch (err) {
+            console.error('Ошибка подключения:', err);
+            showTxResult(`❌ Ошибка подключения: ${err.message || err}`, true);
+            return false;
+        }
+    }
+    
+    // ======================== ОТКЛЮЧЕНИЕ ========================
+    async function disconnectWallet() {
+        try {
+            if (trustAdapter && typeof trustAdapter.disconnect === 'function') {
+                await trustAdapter.disconnect();
+            }
+            // Если через window.trustwallet
+            if (window.trustwallet && window.trustwallet.tronLink && window.trustwallet.tronLink.disconnect) {
+                await window.trustwallet.tronLink.disconnect();
+            }
+        } catch(e) { console.warn(e); }
+        walletAddress = null;
+        tronWebInstance = null;
+        updateUIForConnected(false);
+        showTxResult('🔌 Кошелек отключен', false);
+    }
+    
+    // ======================== ОТПРАВКА TRX (с подписью через адаптер) ========================
+    async function sendTrx() {
+        if (!walletAddress || !tronWebInstance) {
+            showTxResult('⚠️ Кошелек не подключен. Подключите Trust Wallet', true);
+            return;
+        }
+        
+        const toAddress = recipientInput.value.trim();
+        const amount = parseFloat(amountInput.value);
+        
+        if (!toAddress) {
+            showTxResult('❌ Введите адрес получателя', true);
+            return;
+        }
+        if (isNaN(amount) || amount <= 0) {
+            showTxResult('❌ Введите корректную сумму TRX', true);
+            return;
+        }
+        
+        // Блокируем кнопку на время отправки
+        sendTrxBtn.disabled = true;
+        sendTrxBtn.innerText = '⏳ Обработка...';
+        
+        try {
+            // Конвертируем сумму в SUN (1 TRX = 1_000_000 SUN)
+            const amountInSun = Math.floor(amount * 1_000_000);
+            
+            // Шаг 1: построить неподписанную транзакцию через TronWeb
+            // используем метод transactionBuilder.sendTrx
+            const unsignedTx = await tronWebInstance.transactionBuilder.sendTrx(
+                toAddress,
+                amountInSun,
+                walletAddress
+            );
+            
+            // Шаг 2: Подписать транзакцию через Trust Wallet адаптер
+            let signedTx;
+            if (trustAdapter && typeof trustAdapter.signTransaction === 'function') {
+                // Адаптер Trust ожидает неподписанную транзакцию в формате, совместимом с Tron
+                signedTx = await trustAdapter.signTransaction(unsignedTx);
+                console.log('[TX] Транзакция подписана адаптером', signedTx);
+            } 
+            else if (window.trustwallet && window.trustwallet.tronLink && window.trustwallet.tronLink.tronWeb) {
+                // альтернативный метод: использовать tronWeb из trustwallet для подписи
+                signedTx = await window.trustwallet.tronLink.tronWeb.trx.sign(unsignedTx);
+            }
+            else {
+                throw new Error('Нет доступного метода для подписи транзакции. Убедитесь, что Trust Wallet активен.');
+            }
+            
+            // Шаг 3: Отправить подписанную транзакцию в сеть Tron (broadcast)
+            const broadcastResult = await tronWebInstance.trx.sendRawTransaction(signedTx);
+            
+            if (broadcastResult && (broadcastResult.result === true || broadcastResult.code === 'SUCCESS')) {
+                const txId = broadcastResult.txid || broadcastResult.transaction?.txID || 'успешно';
+                showTxResult(`✅ Транзакция отправлена!\nХеш: ${txId}\nСумма: ${amount} TRX`, false);
+            } else {
+                throw new Error(`Broadcast не удался: ${JSON.stringify(broadcastResult)}`);
+            }
+            
+        } catch (error) {
+            console.error('[TX ERROR]', error);
+            let errorMsg = error.message || error;
+            if (errorMsg.includes('rejected')) errorMsg = 'Подпись отклонена пользователем.';
+            else if (errorMsg.includes('User denied')) errorMsg = 'Отклонено в кошельке.';
+            showTxResult(`❌ Ошибка: ${errorMsg}`, true);
+        } finally {
+            sendTrxBtn.disabled = false;
+            sendTrxBtn.innerText = '✍️ Подписать и отправить TRX';
+        }
+    }
+    
+    // ======================== ОБРАБОТЧИКИ СОБЫТИЙ ========================
+    connectBtn.addEventListener('click', () => {
+        connectTrustWallet().catch(err => {
+            showTxResult(`Ошибка: ${err.message}`, true);
+        });
+    });
+    
+    disconnectBtn.addEventListener('click', () => {
+        disconnectWallet();
+    });
+    
+    sendTrxBtn.addEventListener('click', () => {
+        sendTrx().catch(err => showTxResult(`Ошибка отправки: ${err.message}`, true));
+    });
+    
+    // Автоматическая инициализация при загрузке страницы (регистрируем адаптер, но не подключаем)
+    (async function preload() {
+        await initTrustAdapter();
+        // Дополнительно: проверяем наличие Trust Wallet в объекте window
+        if (window.trustwallet) {
+            console.log('Trust Wallet провайдер обнаружен:', window.trustwallet);
+        } else {
+            console.log('Trust Wallet провайдер не обнаружен. На мобильном устройстве откройте страницу в браузере и нажмите Подключить');
+        }
+    })();
+</script>
+</body>
+</html>
