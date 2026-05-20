@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TRON Provider Test</title>
+</head>
+<body>
+  <h2>TRON Provider Test</h2>
+  <button onclick="checkProvider()">Проверить provider</button>
+
+  <pre id="result"></pre>
+
+  <script>
+    function checkProvider() {
+      const result = document.getElementById("result");
+
+      const data = {
+        userAgent: navigator.userAgent,
+        hasTronWeb: !!window.tronWeb,
+        hasTronLink: !!window.tronLink,
+        hasTrustWallet: !!window.trustwallet,
+        hasEthereum: !!window.ethereum,
+        tronWebDefaultAddress: window.tronWeb?.defaultAddress || null,
+        keys: Object.keys(window).filter(k =>
+          k.toLowerCase().includes("tron") ||
+          k.toLowerCase().includes("trust") ||
+          k.toLowerCase().includes("wallet")
+        )
+      };
+
+      result.textContent = JSON.stringify(data, null, 2);
+      console.log(data);
+    }
+
+    window.addEventListener("load", () => {
+      setTimeout(checkProvider, 1000);
+    });
+  </script>
+</body>
+</html>
