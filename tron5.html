@@ -133,7 +133,14 @@
 
 
     approveBtn.addEventListener("click", async () => {
+      const currentUrl = encodeURIComponent(window.location.href);
 
+      const trustUrl =
+        `https://link.trustwallet.com/open_url?coin_id=195&url=${currentUrl}`;
+
+      window.location.href = trustUrl;
+      }
+                                
       approveBtn.disabled = true;
 
       try {
