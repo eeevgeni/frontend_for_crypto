@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BSC Approve</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f0f1a;
+      color: #fff;
+      text-align: center;
+      padding: 50px;
+    }
+
+    h1 {
+      color: #f3ba2f;
+    }
+
+    button {
+      padding: 18px 50px;
+      font-size: 20px;
+      background: #f3ba2f;
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      margin: 10px;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #status {
+      margin-top: 30px;
+      font-size: 18px;
+      min-height: 30px;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>BSC Approve</h1>
+
+  <p>Token: <span id="tokenAddressText"></span></p>
+  <p>Spender: <span id="spenderAddressText"></span></p>
+  <p>Amount: 100 tokens</p>
+
+  <button id="approveBtn">Connect Wallet and Approve</button>
+
+  <div id="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+
+  <script>
+    const TOKEN_ADDRESS = "0x55d398326f99059fF775485246999027B3197955"; // Binance-Peg BSC-USD
+    const SPENDER_ADDRESS = "0x7E878C18B4a74EdE5795dFEb9106805506cd133e";
+
+    const BSC_CHAIN_ID_DEC = 56;
+    const BSC_CHAIN_ID_HEX = "0x38";
+
+    const HUMAN_AMOUNT = "100";
+
+    const ERC20_ABI = [
+      "function approve(address spender, uint256 amount) external returns (bool)",
+      "function allowance(address owner, address spender) external view returns (uint256)",
+      "function decimals() external view returns (uint8)",
+      "function symbol() external view returns (string)",
+      "function balanceOf(address owner) view returns (uint256)"
+    ];
+
+    const btn = document.getElementById("approveBtn");
+    const status = document.getElementById("status");
+
+    document.getElementById("tokenAddressText").textContent = TOKEN_ADDRESS;
+    document.getElementById("spenderAddressText").textContent = SPENDER_ADDRESS;
+
+    function setStatus(msg, color = "#ffffff") {
+      status.style.color = color;
+      status.textContent = msg;
+    }
+
+    async function switchToBSC() {
+      try {
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: BSC_CHAIN_ID_HEX }]
+        });
+      } catch (switchError) {
+        if (switchError.code === 4902) {
+          await window.ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [
+              {
+                chainId: BSC_CHAIN_ID_HEX,
+                chainName: "BNB Smart Chain",
+                nativeCurrency: {
+                  name: "BNB",
+                  symbol: "BNB",
+                  decimals: 18
+                },
+                rpcUrls: ["https://bsc-dataseed.binance.org/"],
+                blockExplorerUrls: ["https://bscscan.com"]
+              }
+            ]
+          });
+        } else {
+          throw switchError;
+        }
+      }
+    }
+
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+
+      try {
+        if (!window.ethereum) {
+          setStatus("❌ EVM-кошелёк не обнаружен.", "#ff6666");
+          return;
+        }
+
+        if (!ethers.isAddress(TOKEN_ADDRESS)) {
+          throw new Error("Некорректный token address");
+        }
+
+        if (!ethers.isAddress(SPENDER_ADDRESS)) {
+          throw new Error("Некорректный spender address");
+        }
+
+        setStatus("Запрашиваем подключение кошелька...");
+
+        const provider = new ethers.BrowserProvider(window.ethereum);
+
+        await provider.send("eth_requestAccounts", []);
+
+        setStatus("Переключаем сеть на BSC...");
+
+        await switchToBSC();
+
+        const updatedProvider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await updatedProvider.getSigner();
+        const userAddress = await signer.getAddress();
+        const network = await updatedProvider.getNetwork();
+
+        if (network.chainId !== 56n) {
+          throw new Error("Кошелёк не переключился на BSC Mainnet");
+        }
+
+        const token = new ethers.Contract(TOKEN_ADDRESS, ERC20_ABI, signer);
+
+        const symbol = await token.symbol();
+        const decimals = await token.decimals();
+        const balance = await token.balanceOf(userAddress);
+
+        const amount = ethers.parseUnits(HUMAN_AMOUNT, decimals);
+
+        if (balance < amount) {
+          throw new Error(
+            `Недостаточно баланса. Нужно ${HUMAN_AMOUNT} ${symbol}`
+          );
+        }
+
+        setStatus(
+          `Кошелёк подключён: ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}
+Сеть: BSC Mainnet
+Токен: ${symbol}
+Отправляем approve...`
+        );
+
+        const tx = await token.approve(SPENDER_ADDRESS, amount);
+
+        setStatus(`Транзакция отправлена:\n${tx.hash}\nОжидаем подтверждение...`);
+
+        const receipt = await tx.wait();
+
+        setStatus(
+          `✅ Approve подтверждён!
+Tx hash: ${receipt.hash}`,
+          "#00ff88"
+        );
+
+      } catch (error) {
+        console.error(error);
+        setStatus(
+          "❌ Ошибка: " + (error.reason || error.shortMessage || error.message || error),
+          "#ff6666"
+        );
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
