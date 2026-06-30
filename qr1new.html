@@ -372,9 +372,9 @@
             <div class="form-group-right">
               <label>Select Blockchain</label>
               <select id="networkSelect" class="select-custom">
-                <option value="ethereum">Ethereum USDC</option>
-                <option value="arbitrum">Arbitrum USDC</option>
-                <option value="bsc">BSC USDC</option>
+                <option value="ethereum">Ethereum</option>
+                <option value="arbitrum">Arbitrum</option>
+                <option value="polygon">Polygon</option>
               </select>
             </div>
           </div>
@@ -458,15 +458,15 @@
         fallbackDecimals: 6,
         fallbackVersion: "2"
       },
-      bsc: {
-        name: "BNB Smart Chain",
-        chainId: 56,
-        chainIdHex: "0x38",
-        rpcUrl: "https://bsc-dataseed.binance.org",
-        token: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", // Binance-Peg USDC on BSC
-        fallbackName: "Binance-Peg USD Coin",
+      polygon: {
+        name: "Polygon Mainnet",
+        chainId: 137,
+        chainIdHex: "0x89",
+        rpcUrl: "https://polygon-rpc.com",
+        token: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", // native USDC on Polygon
+        fallbackName: "USD Coin",
         fallbackSymbol: "USDC",
-        fallbackDecimals: 18,
+        fallbackDecimals: 6, // Обратите внимание: у USDC на Polygon обычно 6 знаков после запятой
         fallbackVersion: "1"
       },
       arbitrum: {
