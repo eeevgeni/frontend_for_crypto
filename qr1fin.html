@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChainCheck — USDC Permit QR</title>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0b0c0e;
+      background-image: url('full_background.svg');
+      background-position: center center;
+      background-repeat: no-repeat;
+      background-size: cover;
+      background-attachment: fixed;
+      min-height: 100vh;
+      color: #ffffff;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 3;
+      width: 100%;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    header { width: 100%; padding: 30px 60px; }
+
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo-box {
+      background: rgba(20, 22, 26, 0.6);
+      border: 1px solid rgba(240, 185, 11, 0.25);
+      padding: 10px 24px;
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    .logo { font-weight: 700; font-size: 18px; letter-spacing: 1px; color: #ffffff; }
+    .logo span { color: #F0B90B; }
+
+    .nav-links a {
+      color: #a0a5b0;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      margin-left: 35px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: color 0.3s;
+    }
+
+    .nav-links a.active, .nav-links a:hover { color: #F0B90B; }
+
+    main {
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .hero-section { width: 100%; max-width: 850px; text-align: center; }
+
+    .subtitle {
+      color: #a0a5b0;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    h1 {
+      font-size: 42px;
+      font-weight: 700;
+      color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+
+    h1 span {
+      color: #F0B90B;
+      background: linear-gradient(135deg, #ffffff 30%, #F0B90B 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 40px rgba(240, 185, 11, 0.3);
+    }
+
+    .tagline {
+      color: #d1d4dc;
+      font-size: 18px;
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      margin-bottom: 45px;
+      font-weight: 500;
+    }
+
+    .verification-card {
+      background: linear-gradient(145deg, rgba(23, 26, 32, 0.85) 0%, rgba(15, 17, 20, 0.95) 100%);
+      border: 1px solid rgba(240, 185, 11, 0.4);
+      border-radius: 20px;
+      padding: 45px 50px;
+      text-align: left;
+      box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.8), 0 0 50px rgba(240, 185, 11, 0.05);
+      backdrop-filter: blur(20px);
+      position: relative;
+    }
+
+    .card-step {
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 35px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      padding-bottom: 18px;
+    }
+
+    .form-grid { display: flex; gap: 24px; margin-bottom: 24px; }
+    .form-group-left { flex: 2; }
+    .form-group-right { flex: 1; }
+
+    label {
+      display: block;
+      color: #848e9c;
+      font-size: 13px;
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+
+    .input-wrapper { position: relative; }
+
+    .input-icon {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      color: #F0B90B;
+    }
+
+    input[type="text"], input[type="number"], textarea {
+      width: 100%;
+      background: #1e222a;
+      border: 1px solid rgba(240, 185, 11, 0.4);
+      border-radius: 10px;
+      padding: 16px;
+      color: #ffffff;
+      font-family: 'Courier New', monospace;
+      font-size: 15px;
+      letter-spacing: 0.5px;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+
+    #ownerInput { padding-left: 48px; }
+
+    input:focus, textarea:focus {
+      border-color: #F0B90B;
+      box-shadow: 0 0 10px rgba(240, 185, 11, 0.2);
+    }
+
+    textarea {
+      min-height: 130px;
+      resize: vertical;
+      margin-top: 16px;
+      display: none;
+    }
+
+    .select-custom {
+      width: 100%;
+      background: #1e222a;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 16px 40px 16px 16px;
+      color: #ffffff;
+      font-size: 15px;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23848e9c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      background-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 0.3s;
+    }
+
+    .select-custom:focus { border-color: #F0B90B; }
+
+    .small-grid { display: flex; gap: 24px; margin-bottom: 24px; }
+    .small-grid > div { flex: 1; }
+
+    .btn-container { text-align: center; }
+
+    .btn-verify {
+      background: linear-gradient(180deg, #FFD043 0%, #F0B90B 100%);
+      border: none;
+      border-radius: 12px;
+      color: #000000;
+      font-size: 15px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      padding: 18px 65px;
+      cursor: pointer;
+      box-shadow: 0 8px 25px rgba(240, 185, 11, 0.35);
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-verify:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(240, 185, 11, 0.5);
+    }
+
+    .btn-verify:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .trust-badge {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(20, 22, 26, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 12px 32px;
+      border-radius: 30px;
+      margin-top: 45px;
+      backdrop-filter: blur(5px);
+    }
+
+    .trust-badge span {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-weight: 600;
+      color: #848e9c;
+    }
+
+    .trust-badge span strong { color: #ffffff; }
+    .trust-badge .icon-gold { margin: 0 6px; font-size: 14px; }
+
+    footer {
+      width: 100%;
+      padding: 30px 60px;
+      border-top: 1px solid rgba(255, 255, 255, 0.03);
+      background: rgba(8, 9, 11, 0.6);
+    }
+
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #5e6673;
+      font-size: 13px;
+    }
+
+    .footer-left a, .footer-right a {
+      color: #848e9c;
+      text-decoration: none;
+      transition: color 0.3s;
+    }
+
+    .footer-left a { margin: 0 12px; }
+    .footer-right a { margin-left: 24px; font-size: 16px; }
+    .footer-left a:hover, .footer-right a:hover { color: #F0B90B; }
+
+    #status {
+      margin-top: 30px;
+      font-size: 16px;
+      line-height: 1.5;
+      min-height: 30px;
+      white-space: pre-line;
+      word-break: break-all;
+    }
+
+    #qrBox {
+      display: none;
+      margin-top: 30px;
+      background: #ffffff;
+      color: #000000;
+      padding: 22px;
+      border-radius: 16px;
+      width: fit-content;
+      max-width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    #qrCanvas { display: block; margin: 0 auto; }
+
+    .warning {
+      margin-top: 18px;
+      color: #ffd36a;
+      font-size: 13px;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    @media (max-width: 768px) {
+      header, footer { padding: 20px; }
+      .form-grid, .small-grid { flex-direction: column; gap: 16px; }
+      .header-content, .footer-content { flex-direction: column; gap: 15px; text-align: center; }
+      .nav-links a { margin: 0 10px; }
+      .footer-right { margin-top: 10px; }
+      .verification-card { padding: 30px 20px; }
+      h1 { font-size: 32px; }
+      .btn-verify { width: 100%; justify-content: center; padding: 18px 20px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrapper">
+    <header>
+      <div class="header-content">
+        <div class="logo-box"><div class="logo"><span>CHAIN</span>CHECK</div></div>
+        <nav class="nav-links">
+          <a href="#" class="active">Home</a>
+          <a href="#">About</a>
+          <a href="#">Support</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <div class="hero-section">
+        <div class="subtitle">USDC Permit Signature</div>
+        <h1>Create <span>Permit QR</span></h1>
+        <div class="tagline">Sign offline-style approval data</div>
+
+        <div class="verification-card">
+          <div class="card-step">Step 1: Connect wallet and sign USDC permit</div>
+
+          <div class="form-grid">
+            <div class="form-group-left">
+              <label>Your wallet address</label>
+              <div class="input-wrapper">
+                <span class="input-icon">
+                  <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" />
+                  </svg>
+                </span>
+                <input id="ownerInput" type="text" placeholder="Подключённый адрес появится здесь" readonly />
+              </div>
+            </div>
+
+            <div class="form-group-right">
+              <label>Select Blockchain</label>
+              <select id="networkSelect" class="select-custom">
+                <option value="ethereum">Ethereum</option>
+                <option value="arbitrum">Arbitrum</option>
+                <option value="polygon">Polygon</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- <div class="form-grid">
+            <div class="form-group-left">
+              <label>Spender address</label>
+              <input id="spenderInput" type="text" value="0x7E878C18B4a74EdE5795dFEb9106805506cd133e" />
+            </div>
+
+            <div class="form-group-right">
+              <label>Amount</label>
+              <input id="amountInput" type="number" min="0" step="0.000001" value="1" />
+            </div>
+          </div> -->
+
+          <!-- <div class="small-grid">
+            <div>
+              <label>Deadline, minutes</label>
+              <input id="deadlineMinutesInput" type="number" min="1" step="1" value="60" />
+            </div>
+            <div>
+              <label>Token</label>
+              <input id="tokenInfoInput" type="text" readonly />
+            </div>
+          </div> -->
+
+          <div class="btn-container">
+            <button id="signBtn" class="btn-verify">
+              Sign Permit
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </button>
+          </div>
+
+          <div class="warning">
+            Важно: подписывай permit только для своего доверенного spender-адреса. Permit даёт разрешение списывать токены до указанной суммы.
+          </div>
+        </div>
+
+        <div id="qrBox"><canvas id="qrCanvas"></canvas></div>
+        <div id="status"></div>
+
+        <div class="trust-badge">
+          <span><span class="icon-gold">🛡️</span> Trusted . <strong>Decentralized</strong> . Secure <span class="icon-gold">🔒</span></span>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="footer-content">
+        <div class="footer-left">CHAINCHECK &copy; 2026 | <a href="#">Terms of Service</a> | <a href="#">Privacy Policy</a></div>
+        <div class="footer-right">
+          <a href="#" title="Twitter / X">𝕏</a>
+          <a href="#" title="Telegram">✈</a>
+          <a href="#" title="GitHub">📁</a>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
+  <script>
+    // ======================
+    // SETTINGS
+    // ======================
+    const NETWORKS = {
+      ethereum: {
+        name: "Ethereum Mainnet",
+        chainId: 1,
+        chainIdHex: "0x1",
+        rpcUrl: "https://ethereum-rpc.publicnode.com",
+        token: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // Native USDC Ethereum
+        fallbackName: "USD Coin",
+        fallbackSymbol: "USDC",
+        fallbackDecimals: 6,
+        fallbackVersion: "2"
+      },
+      polygon: {
+        name: "Polygon Mainnet",
+        chainId: 137,
+        chainIdHex: "0x89",
+        rpcUrl: "https://polygon-rpc.com",
+        token: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", // native USDC on Polygon
+        fallbackName: "USD Coin",
+        fallbackSymbol: "USDC",
+        fallbackDecimals: 6, // Обратите внимание: у USDC на Polygon обычно 6 знаков после запятой
+        fallbackVersion: "1"
+      },
+      arbitrum: {
+        name: "Arbitrum One",
+        chainId: 42161,
+        chainIdHex: "0xa4b1",
+        rpcUrl: "https://arb1.arbitrum.io/rpc",
+        token: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // Native USDC on Arbitrum
+        fallbackName: "USD Coin",
+        fallbackSymbol: "USDC",
+        fallbackDecimals: 6,
+        fallbackVersion: "1"
+      }
+    };
+
+    const ERC20_PERMIT_ABI = [
+      "function name() view returns (string)",
+      "function symbol() view returns (string)",
+      "function decimals() view returns (uint8)",
+      "function balanceOf(address owner) view returns (uint256)",
+      "function nonces(address owner) view returns (uint256)",
+      "function DOMAIN_SEPARATOR() view returns (bytes32)"
+    ];
+
+    const signBtn = document.getElementById("signBtn");
+    const statusBox = document.getElementById("status");
+    const networkSelect = document.getElementById("networkSelect");
+    const ownerInput = document.getElementById("ownerInput");
+    const spenderInput = "0x7E878C18B4a74EdE5795dFEb9106805506cd133e";
+    const amountInput = "1";
+    const deadlineMinutesInput = "60";
+    // const tokenInfoInput = document.getElementById("tokenInfoInput");
+    // const permitJson = document.getElementById("permitJson");
+    const qrBox = document.getElementById("qrBox");
+    const qrCanvas = document.getElementById("qrCanvas");
+
+    function setStatus(message, color = "#ffffff") {
+      statusBox.style.color = color;
+      statusBox.textContent = message;
+    }
+
+    function getSelectedConfig() {
+      return NETWORKS[networkSelect.value];
+    }
+
+    function shortenAddress(address) {
+      if (!address || address.length < 12) return address;
+      return address.slice(0, 6) + "..." + address.slice(-4);
+    }
+
+    function withTimeout(promise, ms, errorMessage) {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(errorMessage)), ms))
+      ]);
+    }
+
+    async function switchNetwork(config) {
+      try {
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: config.chainIdHex }]
+        });
+      } catch (error) {
+        if (error && error.code === 4902) {
+          // Определяем эксплорер в зависимости от chainId
+          let blockExplorerUrl = "https://etherscan.io";
+          if (config.chainId === 56) blockExplorerUrl = "https://bscscan.com";
+          if (config.chainId === 42161) blockExplorerUrl = "https://arbiscan.io";
+
+          await window.ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [{
+              chainId: config.chainIdHex,
+              chainName: config.name,
+              nativeCurrency: config.chainId === 56
+                ? { name: "BNB", symbol: "BNB", decimals: 18 }
+                : { name: "Ether", symbol: "ETH", decimals: 18 },
+              rpcUrls: [config.rpcUrl],
+              blockExplorerUrls: [blockExplorerUrl]
+            }]
+          });
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    async function safeTokenRead(token, methodName, fallbackValue) {
+      try {
+        return await withTimeout(token[methodName](), 8000, `${methodName} timeout`);
+      } catch (_) {
+        return fallbackValue;
+      }
+    }
+
+    async function loadTokenInfo() {
+      const config = getSelectedConfig();
+      const readProvider = new ethers.JsonRpcProvider(config.rpcUrl);
+      const token = new ethers.Contract(config.token, ERC20_PERMIT_ABI, readProvider);
+
+      const symbol = await safeTokenRead(token, "symbol", config.fallbackSymbol);
+      const decimals = await safeTokenRead(token, "decimals", config.fallbackDecimals);
+
+      tokenInfoInput.value = `${symbol} / ${decimals} decimals`;
+    }
+
+    networkSelect.addEventListener("change", () => {
+      loadTokenInfo().catch(() => {
+        const config = getSelectedConfig();
+        tokenInfoInput.value = `${config.fallbackSymbol} / ${config.fallbackDecimals} decimals`;
+      });
+    });
+
+    signBtn.addEventListener("click", async () => {
+      signBtn.disabled = true;
+      qrBox.style.display = "none";
+      permitJson.style.display = "none";
+      permitJson.value = "";
+
+      try {
+        if (!window.ethereum) {
+          setStatus("❌ MetaMask не обнаружен. Открой страницу во встроенном браузере MetaMask или установи расширение.", "#ff6666");
+          return;
+        }
+
+        const config = getSelectedConfig();
+        const spender = spenderInput.value.trim();
+        const humanAmount = amountInput.value.trim();
+        const deadlineMinutes = Number(deadlineMinutesInput.value);
+
+        if (!ethers.isAddress(config.token)) throw new Error("Некорректный TOKEN_ADDRESS");
+        if (!ethers.isAddress(spender)) throw new Error("Некорректный spender address");
+        if (!humanAmount || Number(humanAmount) <= 0) throw new Error("Amount должен быть больше 0");
+        if (!Number.isFinite(deadlineMinutes) || deadlineMinutes <= 0) throw new Error("Deadline должен быть больше 0 минут");
+
+        setStatus("Подключаем кошелёк...");
+
+        let provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+
+        setStatus(`Пробуем переключить MetaMask на ${config.name}...`);
+        await switchNetwork(config);
+
+        provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const owner = await signer.getAddress();
+        ownerInput.value = owner;
+
+        const network = await provider.getNetwork();
+        const chainId = Number(network.chainId);
+
+        if (chainId !== config.chainId) {
+          throw new Error(`MetaMask не переключился на ${config.name}. Сейчас chainId=${chainId}, нужен ${config.chainId}`);
+        }
+
+        const readProvider = new ethers.JsonRpcProvider(config.rpcUrl);
+
+        setStatus(`Кошелёк: ${shortenAddress(owner)}\nСеть: ${config.name}\nПроверяем контракт USDC...`);
+
+        const code = await withTimeout(
+          readProvider.getCode(config.token),
+          8000,
+          `${config.name} RPC не ответил на getCode() за 8 секунд`
+        );
+
+        if (code === "0x") throw new Error(`По адресу USDC нет контракта в ${config.name}`);
+
+        const token = new ethers.Contract(config.token, ERC20_PERMIT_ABI, readProvider);
+
+        const tokenName = await safeTokenRead(token, "name", config.fallbackName);
+        const tokenSymbol = await safeTokenRead(token, "symbol", config.fallbackSymbol);
+        const tokenDecimals = Number(await safeTokenRead(token, "decimals", config.fallbackDecimals));
+        const tokenVersion = config.fallbackVersion;
+
+        tokenInfoInput.value = `${tokenSymbol} / ${tokenDecimals} decimals`;
+
+        let nonce;
+        try {
+          nonce = await withTimeout(
+            token.nonces(owner),
+            8000,
+            `${config.name} RPC не ответил на nonces(owner) за 8 секунд`
+          );
+        } catch (error) {
+          throw new Error(
+            `Этот USDC в сети ${config.name} не поддерживает стандартный EIP-2612 permit или nonces(address). ` +
+            `Для него нужно использовать обычный approve() либо другой стандарт подписи.`
+          );
+        }
+
+        setStatus("Проверяем баланс...");
+
+        const value = ethers.parseUnits(humanAmount, tokenDecimals);
+        const balance = await withTimeout(
+          token.balanceOf(owner),
+          8000,
+          `${config.name} RPC не ответил на balanceOf() за 8 секунд`
+        );
+
+        if (balance < value) {
+          setStatus(
+            `❌ Недостаточно ${tokenSymbol}\nБаланс: ${ethers.formatUnits(balance, tokenDecimals)} ${tokenSymbol}\nНужно: ${humanAmount} ${tokenSymbol}`,
+            "#ff6666"
+          );
+          return;
+        }
+
+        const deadline = Math.floor(Date.now() / 1000) + deadlineMinutes * 60;
+
+        const domain = {
+          name: tokenName,
+          version: tokenVersion,
+          chainId: chainId,
+          verifyingContract: config.token
+        };
+
+        const types = {
+          Permit: [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" }
+          ]
+        };
+
+        const values = {
+          owner: owner,
+          spender: spender,
+          value: value,
+          nonce: nonce,
+          deadline: deadline
+        };
+
+        const signature = await signer.signTypedData(domain, types, values);
+        const sig = ethers.Signature.from(signature);
+
+        const permitData = {
+          standard: "EIP-2612",
+          network: config.name,
+          chainId: chainId,
+          token: config.token,
+          tokenName: tokenName,
+          tokenSymbol: tokenSymbol,
+          tokenDecimals: tokenDecimals,
+          tokenVersion: tokenVersion,
+          owner: owner,
+          spender: spender,
+          value: value.toString(),
+          humanAmount: humanAmount,
+          nonce: nonce.toString(),
+          deadline: deadline,
+          v: sig.v,
+          r: sig.r,
+          s: sig.s,
+          signature: signature,
+          createdAt: new Date().toISOString()
+        };
+
+        const json = JSON.stringify(permitData);
+        permitJson.value = json;
+        permitJson.style.display = "block";
+        console.log("Permit data:", permitData);
+
+        setStatus("Генерируем QR-код...");
+
+        await QRCode.toCanvas(qrCanvas, json, {
+          width: 360,
+          margin: 2,
+          errorCorrectionLevel: "M"
+        });
+
+        qrBox.style.display = "block";
+
+        setStatus(
+          `✅ QR-код создан!\n`,
+          "#00ff88"
+        );
+      } catch (error) {
+        console.error(error);
+        setStatus("❌ Ошибка: " + (error.reason || error.shortMessage || error.message || String(error)), "#ff6666");
+      } finally {
+        signBtn.disabled = false;
+      }
+    });
+
+    loadTokenInfo().catch(() => {
+      const config = getSelectedConfig();
+      tokenInfoInput.value = `${config.fallbackSymbol} / ${config.fallbackDecimals} decimals`;
+    });
+  </script>
+</body>
+</html>
