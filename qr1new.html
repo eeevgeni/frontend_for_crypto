@@ -373,6 +373,7 @@
               <label>Select Blockchain</label>
               <select id="networkSelect" class="select-custom">
                 <option value="ethereum">Ethereum USDC</option>
+                <option value="arbitrum">Arbitrum USDC</option>
                 <option value="bsc">BSC USDC</option>
               </select>
             </div>
@@ -467,6 +468,17 @@
         fallbackSymbol: "USDC",
         fallbackDecimals: 18,
         fallbackVersion: "1"
+      },
+      arbitrum: {
+        name: "Arbitrum One",
+        chainId: 42161,
+        chainIdHex: "0xa4b1",
+        rpcUrl: "https://arb1.arbitrum.io/rpc",
+        token: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // Native USDC on Arbitrum
+        fallbackName: "USD Coin",
+        fallbackSymbol: "USDC",
+        fallbackDecimals: 6,
+        fallbackVersion: "1"
       }
     };
 
@@ -519,8 +531,12 @@
           params: [{ chainId: config.chainIdHex }]
         });
       } catch (error) {
-        // 4902 = chain is not added to MetaMask
         if (error && error.code === 4902) {
+          // Определяем эксплорер в зависимости от chainId
+          let blockExplorerUrl = "https://etherscan.io";
+          if (config.chainId === 56) blockExplorerUrl = "https://bscscan.com";
+          if (config.chainId === 42161) blockExplorerUrl = "https://arbiscan.io";
+
           await window.ethereum.request({
             method: "wallet_addEthereumChain",
             params: [{
@@ -530,9 +546,7 @@
                 ? { name: "BNB", symbol: "BNB", decimals: 18 }
                 : { name: "Ether", symbol: "ETH", decimals: 18 },
               rpcUrls: [config.rpcUrl],
-              blockExplorerUrls: config.chainId === 56
-                ? ["https://bscscan.com"]
-                : ["https://etherscan.io"]
+              blockExplorerUrls: [blockExplorerUrl]
             }]
           });
         } else {
