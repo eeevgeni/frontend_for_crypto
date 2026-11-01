@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Uniswap V3 Position Inspector</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <style>
+    :root{
+      --bg:#0b1020;--panel:#121a2f;--panel2:#18233d;--text:#eef3ff;
+      --muted:#9ba9c7;--accent:#7c9cff;--ok:#42d392;--warn:#ffcc66;--bad:#ff6b81;
+      --border:#263556;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(180deg,#08101d,#0b1020 35%);color:var(--text)}
+    .wrap{max-width:1180px;margin:0 auto;padding:28px 18px 60px}
+    h1{font-size:28px;margin:0 0 8px}
+    .lead{color:var(--muted);margin:0 0 22px;line-height:1.55}
+    .panel{background:rgba(18,26,47,.94);border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:16px;box-shadow:0 15px 45px rgba(0,0,0,.18)}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+    .c3{grid-column:span 3}.c4{grid-column:span 4}.c6{grid-column:span 6}.c8{grid-column:span 8}.c12{grid-column:span 12}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input,select,button{width:100%;border-radius:10px;border:1px solid var(--border);background:#0e172b;color:var(--text);padding:11px 12px;font-size:14px}
+    input:focus,select:focus{outline:2px solid rgba(124,156,255,.35);border-color:var(--accent)}
+    button{cursor:pointer;background:linear-gradient(135deg,#6d8fff,#8c6dff);border:0;font-weight:700}
+    button.secondary{background:#17233d;border:1px solid var(--border)}
+    button.small{padding:8px 10px;font-size:13px}
+    .tabs{display:flex;gap:8px;margin-bottom:14px}
+    .tab{width:auto;padding:9px 14px;background:#17233d;border:1px solid var(--border)}
+    .tab.active{background:var(--accent);color:#08101d}
+    .hidden{display:none!important}
+    .status{font-size:13px;color:var(--muted);margin-top:10px;min-height:20px}
+    .status.ok{color:var(--ok)} .status.err{color:var(--bad)} .status.warn{color:var(--warn)}
+    .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+    .card{background:var(--panel2);border:1px solid var(--border);border-radius:14px;padding:14px}
+    .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.v{font-size:19px;font-weight:700;margin-top:5px;word-break:break-word}
+    .sub{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.45}
+    .position{border-top:1px solid var(--border);padding-top:18px;margin-top:18px}
+    .position:first-child{border-top:0;padding-top:0;margin-top:0}
+    .pos-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+    .pos-title{font-size:20px;font-weight:800}.badge{display:inline-block;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:700}
+    .badge.in{background:rgba(66,211,146,.15);color:var(--ok)} .badge.out{background:rgba(255,107,129,.14);color:var(--bad)}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    details{margin-top:14px} summary{cursor:pointer;color:var(--muted)}
+    
+    .note{font-size:12px;color:var(--muted);line-height:1.5}
+    .rangebox{margin-top:14px;background:var(--panel2);border:1px solid var(--border);border-radius:14px;padding:16px}
+    .range-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;margin-bottom:13px}
+    .range-title{font-weight:800}
+    .range-track-wrap{padding:18px 8px 7px}
+    .range-track{position:relative;height:10px;border-radius:999px;background:linear-gradient(90deg,rgba(124,156,255,.22),rgba(66,211,146,.75),rgba(124,156,255,.22));box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+    .range-track:before,.range-track:after{content:"";position:absolute;top:-5px;width:2px;height:20px;background:#cbd5ee;border-radius:2px}
+    .range-track:before{left:0}.range-track:after{right:0}
+    .marker{position:absolute;top:50%;width:18px;height:18px;border-radius:50%;background:#fff;border:4px solid var(--accent);transform:translate(-50%,-50%);box-shadow:0 0 0 5px rgba(124,156,255,.18),0 3px 12px rgba(0,0,0,.35)}
+    .marker.out-left{left:0!important;border-color:var(--bad);transform:translate(-25%,-50%)}
+    .marker.out-right{left:100%!important;border-color:var(--bad);transform:translate(-75%,-50%)}
+    .range-labels{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px}
+    .range-labels>div:nth-child(2){text-align:center}.range-labels>div:nth-child(3){text-align:right}
+    .range-price{font-weight:800;font-size:14px}.range-caption{font-size:11px;color:var(--muted);margin-top:3px}
+    .range-distance{display:flex;justify-content:space-between;gap:12px;margin-top:12px;font-size:12px;color:var(--muted)}
+    .usd{color:#b8f7d6}
+    .apy{color:#d7c4ff}
+
+    a{color:#9db3ff}
+    @media(max-width:800px){.c3,.c4,.c6,.c8{grid-column:span 12}.cards{grid-template-columns:1fr}.pos-head{align-items:flex-start;flex-direction:column}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Uniswap V3 Position Inspector</h1>
+  <p class="lead">Читает позицию напрямую из блокчейна: текущие количества token0/token1, диапазон цены, статус IN/OUT OF RANGE и начисленные, но ещё не собранные комиссии.</p>
+
+  <div class="panel">
+    <div class="grid">
+      <div class="c4">
+        <label>Сеть</label>
+        <select id="network"></select>
+      </div>
+      <div class="c8">
+        <label>RPC URL</label>
+        <input id="rpc" />
+      </div>
+    </div>
+
+
+    <div class="grid" style="margin-top:12px">
+      <div class="c4">
+        <label>Период накопления показанных комиссий, дней</label>
+        <input id="feeDays" inputmode="decimal" type="number" min="0.01" step="0.1" value="30" />
+      </div>
+      <div class="c8" style="align-self:end">
+        <div class="note">APR/APY — оценка по текущим невостребованным комиссиям за указанный период. Если вы недавно собирали комиссии, укажите число дней после последнего collect.</div>
+      </div>
+    </div>
+
+    <div class="tabs" style="margin-top:16px">
+      <button class="tab active" id="tabId">По tokenId</button>
+      <button class="tab" id="tabWallet">По кошельку</button>
+    </div>
+
+    <div id="modeId">
+      <div class="grid">
+        <div class="c8">
+          <label>NFT position tokenId</label>
+          <input id="tokenId" inputmode="numeric" placeholder="Например: 123456" />
+        </div>
+        <div class="c4" style="align-self:end">
+          <button id="loadId">Показать позицию</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modeWallet" class="hidden">
+      <div class="grid">
+        <div class="c8">
+          <label>Адрес кошелька</label>
+          <input id="wallet" placeholder="0x..." />
+        </div>
+        <div class="c4" style="align-self:end">
+          <button id="loadWallet">Найти позиции</button>
+        </div>
+      </div>
+      <details>
+        <summary>Настройки поиска NFT</summary>
+        <div class="grid" style="margin-top:12px">
+          <div class="c4">
+            <label>Начальный блок</label>
+            <input id="fromBlock" inputmode="numeric" />
+          </div>
+          <div class="c4">
+            <label>Начальный размер шага</label>
+            <input id="chunk" inputmode="numeric" value="100000" />
+          </div>
+          <div class="c4">
+            <label>Макс. найденных tokenId</label>
+            <input id="maxIds" inputmode="numeric" value="100" />
+          </div>
+        </div>
+        <p class="note">Поиск по кошельку сканирует события ERC-721 Transfer у Position Manager, после чего проверяет текущего владельца через ownerOf(). Некоторые бесплатные RPC ограничивают диапазон eth_getLogs; файл автоматически уменьшает шаг при ошибке.</p>
+      </details>
+    </div>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <div id="results" class="panel hidden"></div>
+
+  <div class="panel note">
+    Данные только для чтения. Комиссии вычисляются по глобальному fee growth, данным граничных ticks и последнему feeGrowthInside позиции. Значение может измениться уже в следующем блоке. Для очень старых кошельков режим поиска по адресу может быть медленным на публичном RPC.
+  </div>
+</div>
+
+<script>
+const { ethers } = window;
+
+const CHAINS = {
+  ethereum: {
+    name:"Ethereum", chainId:1,
+    rpc:"https://ethereum-rpc.publicnode.com",
+    npm:"0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
+    factory:"0x1F98431c8aD98523631AE4a59f267346ea31F984",
+    fromBlock:12300000, explorer:"https://etherscan.io"
+  },
+  arbitrum: {
+    name:"Arbitrum One", chainId:42161,
+    rpc:"https://arbitrum-one-rpc.publicnode.com",
+    npm:"0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
+    factory:"0x1F98431c8aD98523631AE4a59f267346ea31F984",
+    fromBlock:0, explorer:"https://arbiscan.io"
+  },
+  polygon: {
+    name:"Polygon", chainId:137,
+    rpc:"https://polygon-bor-rpc.publicnode.com",
+    npm:"0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
+    factory:"0x1F98431c8aD98523631AE4a59f267346ea31F984",
+    fromBlock:22000000, explorer:"https://polygonscan.com"
+  },
+  optimism: {
+    name:"Optimism", chainId:10,
+    rpc:"https://optimism-rpc.publicnode.com",
+    npm:"0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
+    factory:"0x1F98431c8aD98523631AE4a59f267346ea31F984",
+    fromBlock:0, explorer:"https://optimistic.etherscan.io"
+  },
+  base: {
+    name:"Base", chainId:8453,
+    rpc:"https://base-rpc.publicnode.com",
+    npm:"0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1",
+    factory:"0x33128a8fC17869897dcE68Ed026d694621f6FDfD",
+    fromBlock:0, explorer:"https://basescan.org"
+  }
+};
+
+
+const LLAMA_CHAIN = {
+  ethereum:"ethereum",
+  arbitrum:"arbitrum",
+  polygon:"polygon",
+  optimism:"optimism",
+  base:"base"
+};
+
+const NPM_ABI = [
+  "function positions(uint256 tokenId) view returns (uint96 nonce,address operator,address token0,address token1,uint24 fee,int24 tickLower,int24 tickUpper,uint128 liquidity,uint256 feeGrowthInside0LastX128,uint256 feeGrowthInside1LastX128,uint128 tokensOwed0,uint128 tokensOwed1)",
+  "function ownerOf(uint256 tokenId) view returns (address)"
+];
+const FACTORY_ABI = ["function getPool(address tokenA,address tokenB,uint24 fee) view returns (address pool)"];
+const POOL_ABI = [
+  "function slot0() view returns (uint160 sqrtPriceX96,int24 tick,uint16 observationIndex,uint16 observationCardinality,uint16 observationCardinalityNext,uint8 feeProtocol,bool unlocked)",
+  "function feeGrowthGlobal0X128() view returns (uint256)",
+  "function feeGrowthGlobal1X128() view returns (uint256)",
+  "function ticks(int24 tick) view returns (uint128 liquidityGross,int128 liquidityNet,uint256 feeGrowthOutside0X128,uint256 feeGrowthOutside1X128,int56 tickCumulativeOutside,uint160 secondsPerLiquidityOutsideX128,uint32 secondsOutside,bool initialized)"
+];
+const ERC20_ABI = [
+  "function symbol() view returns (string)",
+  "function name() view returns (string)",
+  "function decimals() view returns (uint8)"
+];
+
+const Q96 = 2n ** 96n;
+const Q128 = 2n ** 128n;
+const Q256 = 2n ** 256n;
+const ZERO = "0x0000000000000000000000000000000000000000";
+const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
+
+const $ = id => document.getElementById(id);
+let lastPositions=[];
+const networkSel = $("network");
+Object.entries(CHAINS).forEach(([k,v]) => {
+  const o=document.createElement("option"); o.value=k; o.textContent=v.name; networkSel.appendChild(o);
+});
+networkSel.value="arbitrum";
+applyNetwork();
+
+networkSel.onchange=applyNetwork;
+function applyNetwork(){
+  const c=CHAINS[networkSel.value];
+  $("rpc").value=c.rpc;
+  $("fromBlock").value=c.fromBlock;
+}
+function chain(){return CHAINS[networkSel.value]}
+function setStatus(text,type=""){const s=$("status");s.textContent=text;s.className="status "+type}
+function provider(){return new ethers.JsonRpcProvider($("rpc").value.trim(), chain().chainId, {staticNetwork:true})}
+function esc(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function short(a){return a.slice(0,6)+"…"+a.slice(-4)}
+function mod256(x){x%=Q256; return x<0n ? x+Q256 : x}
+function fmtUnits(v,d,prec=8){
+  let s=ethers.formatUnits(v,d);
+  let [a,b=""]=s.split(".");
+  if(b.length>prec)b=b.slice(0,prec);
+  b=b.replace(/0+$/,"");
+  return b ? a+"."+b : a;
+}
+function fmtPrice(v){
+  if(!Number.isFinite(v)) return "∞";
+  if(v===0) return "0";
+  if(v>=1000) return v.toLocaleString("en-US",{maximumFractionDigits:4});
+  if(v>=1) return v.toLocaleString("en-US",{maximumFractionDigits:8});
+  if(v>=0.000001) return v.toLocaleString("en-US",{maximumSignificantDigits:8});
+  return v.toExponential(6);
+}
+function tickPrice(tick,d0,d1){
+  return Math.pow(1.0001, Number(tick)) * Math.pow(10, d0-d1);
+}
+function numUnits(v,d){ return Number(ethers.formatUnits(v,d)); }
+function money(v){
+  if(!Number.isFinite(v)) return "—";
+  if(Math.abs(v)>=1000) return "$"+v.toLocaleString("en-US",{maximumFractionDigits:2});
+  if(Math.abs(v)>=1) return "$"+v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+  return "$"+v.toLocaleString("en-US",{maximumSignificantDigits:5});
+}
+function pct(v){
+  if(!Number.isFinite(v)) return "—";
+  if(Math.abs(v)>=1000) return v.toLocaleString("en-US",{maximumFractionDigits:0})+"%";
+  return v.toLocaleString("en-US",{maximumFractionDigits:2})+"%";
+}
+async function usdPrices(address0,address1){
+  const slug=LLAMA_CHAIN[networkSel.value];
+  const k0=`${slug}:${address0.toLowerCase()}`;
+  const k1=`${slug}:${address1.toLowerCase()}`;
+  try{
+    const url=`https://coins.llama.fi/prices/current/${encodeURIComponent(k0+","+k1)}`;
+    const r=await fetch(url);
+    if(!r.ok) throw new Error("Price API HTTP "+r.status);
+    const j=await r.json();
+    const pick=(key,address)=>{
+      const direct=j.coins?.[key]?.price;
+      if(Number.isFinite(direct)) return Number(direct);
+      const hit=Object.entries(j.coins||{}).find(([k])=>k.toLowerCase()===`${slug}:${address}`.toLowerCase());
+      return hit ? Number(hit[1].price) : null;
+    };
+    return {p0:pick(k0,address0),p1:pick(k1,address1),source:"DefiLlama"};
+  }catch(e){
+    console.warn("USD price lookup failed",e);
+    return {p0:null,p1:null,source:null};
+  }
+}
+function rangeMetrics(x){
+  const span=x.tickUpper-x.tickLower;
+  const raw=span ? (x.currentTick-x.tickLower)/span*100 : 0;
+  const marker=Math.max(0,Math.min(100,raw));
+  const leftClass=raw<0 ? " out-left" : raw>100 ? " out-right" : "";
+  const aboveLow=(x.pNow/x.pLow-1)*100;
+  const belowHigh=(x.pHigh/x.pNow-1)*100;
+  return {raw,marker,leftClass,aboveLow,belowHigh};
+}
+function aprApy(x){
+  const days=Math.max(0.01,Number($("feeDays").value)||30);
+  if(!(x.positionUsd>0) || !(x.feesUsd>=0)) return {days,apr:null,apy:null,periodReturn:null};
+  const r=x.feesUsd/x.positionUsd;
+  const apr=r*365/days*100;
+  let apy=(Math.pow(1+r,365/days)-1)*100;
+  if(!Number.isFinite(apy) || apy>1e9) apy=Infinity;
+  return {days,apr,apy,periodReturn:r*100};
+}
+function sqrtRatioAtTick(tick){
+  // Точный порт Uniswap V3 TickMath.getSqrtRatioAtTick().
+  let t=Number(tick);
+  const absTick=t<0?-t:t;
+  if(absTick>887272) throw new Error("Tick вне допустимого диапазона.");
+  let ratio=(absTick & 0x1) ? 0xfffcb933bd6fad37aa2d162d1a594001n : 0x100000000000000000000000000000000n;
+  if(absTick & 0x2) ratio=(ratio*0xfff97272373d413259a46990580e213an)>>128n;
+  if(absTick & 0x4) ratio=(ratio*0xfff2e50f5f656932ef12357cf3c7fdccn)>>128n;
+  if(absTick & 0x8) ratio=(ratio*0xffe5caca7e10e4e61c3624eaa0941cd0n)>>128n;
+  if(absTick & 0x10) ratio=(ratio*0xffcb9843d60f6159c9db58835c926644n)>>128n;
+  if(absTick & 0x20) ratio=(ratio*0xff973b41fa98c081472e6896dfb254c0n)>>128n;
+  if(absTick & 0x40) ratio=(ratio*0xff2ea16466c96a3843ec78b326b52861n)>>128n;
+  if(absTick & 0x80) ratio=(ratio*0xfe5dee046a99a2a811c461f1969c3053n)>>128n;
+  if(absTick & 0x100) ratio=(ratio*0xfcbe86c7900a88aedcffc83b479aa3a4n)>>128n;
+  if(absTick & 0x200) ratio=(ratio*0xf987a7253ac413176f2b074cf7815e54n)>>128n;
+  if(absTick & 0x400) ratio=(ratio*0xf3392b0822b70005940c7a398e4b70f3n)>>128n;
+  if(absTick & 0x800) ratio=(ratio*0xe7159475a2c29b7443b29c7fa6e889d9n)>>128n;
+  if(absTick & 0x1000) ratio=(ratio*0xd097f3bdfd2022b8845ad8f792aa5825n)>>128n;
+  if(absTick & 0x2000) ratio=(ratio*0xa9f746462d870fdf8a65dc1f90e061e5n)>>128n;
+  if(absTick & 0x4000) ratio=(ratio*0x70d869a156d2a1b890bb3df62baf32f7n)>>128n;
+  if(absTick & 0x8000) ratio=(ratio*0x31be135f97d08fd981231505542fcfa6n)>>128n;
+  if(absTick & 0x10000) ratio=(ratio*0x9aa508b5b7a84e1c677de54f3e99bc9n)>>128n;
+  if(absTick & 0x20000) ratio=(ratio*0x5d6af8dedb81196699c329225ee604n)>>128n;
+  if(absTick & 0x40000) ratio=(ratio*0x2216e584f5fa1ea926041bedfe98n)>>128n;
+  if(absTick & 0x80000) ratio=(ratio*0x48a170391f7dc42444e8fa2n)>>128n;
+  if(t>0) ratio=((1n<<256n)-1n)/ratio;
+  return (ratio>>32n) + (ratio%(1n<<32n)===0n ? 0n : 1n);
+}
+function amountsForLiquidity(L,sqrtP,sqrtA,sqrtB){
+  if(sqrtA>sqrtB){const t=sqrtA;sqrtA=sqrtB;sqrtB=t}
+  let amount0=0n, amount1=0n;
+  if(sqrtP<=sqrtA){
+    amount0 = L * (sqrtB-sqrtA) * Q96 / (sqrtA*sqrtB);
+  } else if(sqrtP<sqrtB){
+    amount0 = L * (sqrtB-sqrtP) * Q96 / (sqrtP*sqrtB);
+    amount1 = L * (sqrtP-sqrtA) / Q96;
+  } else {
+    amount1 = L * (sqrtB-sqrtA) / Q96;
+  }
+  return {amount0,amount1};
+}
+async function tokenMeta(p,address){
+  const c=new ethers.Contract(address,ERC20_ABI,p);
+  const [symbol,name,decimals]=await Promise.all([
+    c.symbol().catch(()=>short(address)),
+    c.name().catch(()=>short(address)),
+    c.decimals().catch(()=>18)
+  ]);
+  return {address,symbol,name,decimals:Number(decimals)};
+}
+function feeInside(global, lowerOutside, upperOutside, currentTick, lower, upper){
+  const below = currentTick >= lower ? lowerOutside : mod256(global-lowerOutside);
+  const above = currentTick < upper ? upperOutside : mod256(global-upperOutside);
+  return mod256(global-below-above);
+}
+async function loadPosition(id,p){
+  const cfg=chain();
+  const npm=new ethers.Contract(cfg.npm,NPM_ABI,p);
+  const pos=await npm.positions(id);
+  const owner=await npm.ownerOf(id);
+  const factory=new ethers.Contract(cfg.factory,FACTORY_ABI,p);
+  const poolAddr=await factory.getPool(pos.token0,pos.token1,pos.fee);
+  if(poolAddr===ZERO) throw new Error("Пул для этой позиции не найден.");
+
+  const pool=new ethers.Contract(poolAddr,POOL_ABI,p);
+  const [slot0,g0,g1,lo,up,m0,m1]=await Promise.all([
+    pool.slot0(), pool.feeGrowthGlobal0X128(), pool.feeGrowthGlobal1X128(),
+    pool.ticks(pos.tickLower), pool.ticks(pos.tickUpper),
+    tokenMeta(p,pos.token0), tokenMeta(p,pos.token1)
+  ]);
+
+  const currentTick=Number(slot0.tick), lower=Number(pos.tickLower), upper=Number(pos.tickUpper);
+  const inRange=currentTick>=lower && currentTick<upper;
+
+  const inside0=feeInside(g0,lo.feeGrowthOutside0X128,up.feeGrowthOutside0X128,currentTick,lower,upper);
+  const inside1=feeInside(g1,lo.feeGrowthOutside1X128,up.feeGrowthOutside1X128,currentTick,lower,upper);
+  const d0=mod256(inside0-pos.feeGrowthInside0LastX128);
+  const d1=mod256(inside1-pos.feeGrowthInside1LastX128);
+  const fees0=BigInt(pos.tokensOwed0) + BigInt(pos.liquidity)*d0/Q128;
+  const fees1=BigInt(pos.tokensOwed1) + BigInt(pos.liquidity)*d1/Q128;
+
+  let sqrtA, sqrtB;
+  try{
+    sqrtA=sqrtRatioAtTick(lower);
+    sqrtB=sqrtRatioAtTick(upper);
+  }catch{
+    sqrtA=0n;sqrtB=0n;
+  }
+  const amounts = sqrtA && sqrtB ? amountsForLiquidity(BigInt(pos.liquidity),BigInt(slot0.sqrtPriceX96),sqrtA,sqrtB) : {amount0:0n,amount1:0n};
+
+  const pNow=tickPrice(currentTick,m0.decimals,m1.decimals);
+  const pLow=tickPrice(lower,m0.decimals,m1.decimals);
+  const pHigh=tickPrice(upper,m0.decimals,m1.decimals);
+
+  const prices=await usdPrices(m0.address,m1.address);
+  const amount0Num=numUnits(amounts.amount0,m0.decimals);
+  const amount1Num=numUnits(amounts.amount1,m1.decimals);
+  const fees0Num=numUnits(fees0,m0.decimals);
+  const fees1Num=numUnits(fees1,m1.decimals);
+  const positionUsd=(prices.p0!=null && prices.p1!=null) ? amount0Num*prices.p0 + amount1Num*prices.p1 : null;
+  const feesUsd=(prices.p0!=null && prices.p1!=null) ? fees0Num*prices.p0 + fees1Num*prices.p1 : null;
+
+  return {
+    id:String(id),owner,poolAddr,fee:Number(pos.fee),liquidity:BigInt(pos.liquidity),
+    tickLower:lower,tickUpper:upper,currentTick,inRange,
+    t0:m0,t1:m1,amount0:amounts.amount0,amount1:amounts.amount1,fees0,fees1,
+    pNow,pLow,pHigh,usd0:prices.p0,usd1:prices.p1,priceSource:prices.source,
+    positionUsd,feesUsd,totalUsd:(positionUsd!=null && feesUsd!=null)?positionUsd+feesUsd:null
+  };
+}
+function positionHtml(x){
+  const cfg=chain();
+  const feePct=(x.fee/10000).toFixed(x.fee%10000===0?0:4).replace(/0+$/,"").replace(/\.$/,"");
+  const rm=rangeMetrics(x);
+  const yieldStats=aprApy(x);
+  const markerClass="marker"+rm.leftClass;
+  const priceInfo=(x.usd0!=null && x.usd1!=null)
+    ? `${x.t0.symbol}: ${money(x.usd0)} · ${x.t1.symbol}: ${money(x.usd1)}`
+    : "USD цена для одного или обоих токенов не найдена";
+  const aprText=yieldStats.apr==null ? "—" : pct(yieldStats.apr);
+  const apyText=yieldStats.apy==null ? "—" : (yieldStats.apy===Infinity ? ">1,000,000,000%" : pct(yieldStats.apy));
+
+  return `
+  <div class="position">
+    <div class="pos-head">
+      <div>
+        <div class="pos-title">#${esc(x.id)} · ${esc(x.t0.symbol)}/${esc(x.t1.symbol)} · ${feePct}%</div>
+        <div class="sub">Owner: <span class="mono">${esc(x.owner)}</span></div>
+      </div>
+      <span class="badge ${x.inRange?"in":"out"}">${x.inRange?"IN RANGE":"OUT OF RANGE"}</span>
+    </div>
+
+    <div class="cards">
+      <div class="card"><div class="k">Текущий объём ${esc(x.t0.symbol)}</div><div class="v">${fmtUnits(x.amount0,x.t0.decimals)}</div><div class="sub">${x.usd0!=null ? money(numUnits(x.amount0,x.t0.decimals)*x.usd0) : "USD: —"} · fees: ${fmtUnits(x.fees0,x.t0.decimals)}</div></div>
+      <div class="card"><div class="k">Текущий объём ${esc(x.t1.symbol)}</div><div class="v">${fmtUnits(x.amount1,x.t1.decimals)}</div><div class="sub">${x.usd1!=null ? money(numUnits(x.amount1,x.t1.decimals)*x.usd1) : "USD: —"} · fees: ${fmtUnits(x.fees1,x.t1.decimals)}</div></div>
+      <div class="card"><div class="k">Стоимость позиции</div><div class="v usd">${money(x.positionUsd)}</div><div class="sub">Без невостребованных комиссий</div></div>
+
+      <div class="card"><div class="k">Накоплено комиссий</div><div class="v usd">${money(x.feesUsd)}</div><div class="sub">${fmtUnits(x.fees0,x.t0.decimals)} ${esc(x.t0.symbol)} + ${fmtUnits(x.fees1,x.t1.decimals)} ${esc(x.t1.symbol)}</div></div>
+      <div class="card"><div class="k">APR · ${yieldStats.days} дней</div><div class="v">${aprText}</div><div class="sub">Доход за период: ${yieldStats.periodReturn==null?"—":pct(yieldStats.periodReturn)}</div></div>
+      <div class="card"><div class="k">APY · реинвестирование</div><div class="v apy">${apyText}</div><div class="sub">Математическая экстраполяция текущего темпа</div></div>
+
+      <div class="card"><div class="k">Позиция + комиссии</div><div class="v">${money(x.totalUsd)}</div><div class="sub">${priceInfo}${x.priceSource?" · "+x.priceSource:""}</div></div>
+      <div class="card"><div class="k">Диапазон цены</div><div class="v">${fmtPrice(x.pLow)} → ${fmtPrice(x.pHigh)}</div><div class="sub">${esc(x.t1.symbol)} за 1 ${esc(x.t0.symbol)}</div></div>
+      <div class="card"><div class="k">Текущая цена</div><div class="v">${fmtPrice(x.pNow)}</div><div class="sub">${esc(x.t1.symbol)} за 1 ${esc(x.t0.symbol)} · tick ${x.currentTick}</div></div>
+    </div>
+
+    <div class="rangebox">
+      <div class="range-head">
+        <div>
+          <div class="range-title">Положение цены внутри диапазона</div>
+          <div class="sub">Шкала логарифмическая по цене / линейная по tick</div>
+        </div>
+        <span class="badge ${x.inRange?"in":"out"}">${x.inRange ? `${Math.max(0,Math.min(100,rm.raw)).toFixed(1)}% диапазона` : "вне диапазона"}</span>
+      </div>
+      <div class="range-track-wrap">
+        <div class="range-track">
+          <div class="${markerClass}" style="left:${rm.marker}%"></div>
+        </div>
+        <div class="range-labels">
+          <div><div class="range-price">${fmtPrice(x.pLow)}</div><div class="range-caption">LOW · tick ${x.tickLower}</div></div>
+          <div><div class="range-price">${fmtPrice(x.pNow)}</div><div class="range-caption">CURRENT · tick ${x.currentTick}</div></div>
+          <div><div class="range-price">${fmtPrice(x.pHigh)}</div><div class="range-caption">HIGH · tick ${x.tickUpper}</div></div>
+        </div>
+        <div class="range-distance">
+          <span>От нижней границы: <b>${rm.aboveLow>=0?"+":""}${pct(rm.aboveLow)}</b></span>
+          <span>До верхней границы: <b>${rm.belowHigh>=0?"+":""}${pct(rm.belowHigh)}</b></span>
+        </div>
+      </div>
+    </div>
+
+    <details>
+      <summary>Технические данные</summary>
+      <div class="cards">
+        <div class="card"><div class="k">Ticks</div><div class="v mono">${x.tickLower} … ${x.tickUpper}</div></div>
+        <div class="card"><div class="k">Liquidity</div><div class="v mono">${x.liquidity.toString()}</div></div>
+        <div class="card"><div class="k">Pool</div><div class="v mono" style="font-size:13px">${esc(x.poolAddr)}</div><div class="sub"><a target="_blank" href="${cfg.explorer}/address/${x.poolAddr}">Открыть explorer</a></div></div>
+        <div class="card"><div class="k">NFT</div><div class="v mono">#${esc(x.id)}</div><div class="sub"><a target="_blank" href="${cfg.explorer}/token/${cfg.npm}?a=${encodeURIComponent(x.id)}">Открыть NFT</a></div></div>
+      </div>
+    </details>
+  </div>`;
+}
+
+async function verifyRpc(p){
+  const net=await p.getNetwork();
+  if(Number(net.chainId)!==chain().chainId) throw new Error(`RPC подключён к chainId ${net.chainId}, а выбрана сеть ${chain().chainId}.`);
+}
+async function runOne(){
+  try{
+    const id=$("tokenId").value.trim();
+    if(!/^\d+$/.test(id)) throw new Error("Введите числовой tokenId.");
+    setStatus("Читаю позицию из блокчейна…");
+    $("results").classList.add("hidden");
+    const p=provider(); await verifyRpc(p);
+    const x=await loadPosition(BigInt(id),p);
+    lastPositions=[x];
+    $("results").innerHTML=lastPositions.map(positionHtml).join("");
+    $("results").classList.remove("hidden");
+    setStatus("Готово.","ok");
+  }catch(e){console.error(e);setStatus(prettyError(e),"err")}
+}
+function prettyError(e){
+  const m=e?.shortMessage||e?.reason||e?.message||String(e);
+  if(/Invalid token ID/i.test(m)) return "Такого tokenId нет в выбранном Position Manager.";
+  if(/failed to fetch|network|CORS/i.test(m)) return "Не удалось обратиться к RPC. Попробуйте другой публичный RPC URL.";
+  return m;
+}
+
+async function getLogsAdaptive(p,filter,start,end,initialChunk,onProgress){
+  let from=start, step=initialChunk, logs=[];
+  while(from<=end){
+    let to=Math.min(end,from+step-1);
+    try{
+      const part=await p.getLogs({...filter,fromBlock:from,toBlock:to});
+      logs.push(...part);
+      from=to+1;
+      if(part.length<250 && step<initialChunk*8) step=Math.min(initialChunk*8,step*2);
+      onProgress?.(from,end,logs.length,step);
+    }catch(e){
+      if(step<=500){
+        throw new Error("RPC не разрешает eth_getLogs даже на малом диапазоне. Укажите другой RPC.");
+      }
+      step=Math.max(500,Math.floor(step/2));
+      onProgress?.(from,end,logs.length,step);
+    }
+  }
+  return logs;
+}
+async function mapLimit(items,limit,fn){
+  const out=[]; let i=0;
+  const workers=Array.from({length:Math.min(limit,items.length)},async()=>{
+    while(i<items.length){const idx=i++; try{out[idx]=await fn(items[idx],idx)}catch{out[idx]=null}}
+  });
+  await Promise.all(workers); return out;
+}
+async function runWallet(){
+  try{
+    const w=$("wallet").value.trim();
+    if(!ethers.isAddress(w)) throw new Error("Некорректный адрес кошелька.");
+    const start=Number($("fromBlock").value);
+    const initialChunk=Math.max(500,Number($("chunk").value)||100000);
+    const maxIds=Math.max(1,Number($("maxIds").value)||100);
+    const p=provider(); await verifyRpc(p);
+    const latest=await p.getBlockNumber();
+    const walletTopic=ethers.zeroPadValue(w,32);
+
+    setStatus(`Сканирую Transfer → ${short(w)}. Блоки ${start.toLocaleString()}…${latest.toLocaleString()}…`);
+    $("results").classList.add("hidden");
+
+    const logs=await getLogsAdaptive(
+      p,
+      {address:chain().npm,topics:[TRANSFER_TOPIC,null,walletTopic]},
+      start,latest,initialChunk,
+      (from,end,count,step)=>setStatus(`Сканирование: ${Math.min(100,((from-start)/(end-start)*100)||0).toFixed(1)}% · событий: ${count} · шаг: ${step.toLocaleString()} блоков`)
+    );
+
+    const ids=[...new Set(logs.map(l=>BigInt(l.topics[3]).toString()))].slice(-maxIds);
+    if(!ids.length){
+      $("results").innerHTML="<div class='note'>В заданном диапазоне блоков NFT-позиции, поступавшие на этот адрес, не найдены.</div>";
+      $("results").classList.remove("hidden"); setStatus("Готово.","ok"); return;
+    }
+
+    setStatus(`Найдено ${ids.length} tokenId-кандидатов. Проверяю текущего владельца…`);
+    const npm=new ethers.Contract(chain().npm,NPM_ABI,p);
+    const owners=await mapLimit(ids,8,async id=>await npm.ownerOf(BigInt(id)));
+    const owned=ids.filter((id,i)=>owners[i] && owners[i].toLowerCase()===w.toLowerCase());
+
+    if(!owned.length){
+      $("results").innerHTML="<div class='note'>Найдены исторические позиции, но сейчас ни одна из них не принадлежит этому кошельку.</div>";
+      $("results").classList.remove("hidden"); setStatus("Готово.","ok"); return;
+    }
+
+    let html="";
+    lastPositions=[];
+    for(let i=0;i<owned.length;i++){
+      setStatus(`Загружаю позиции: ${i+1}/${owned.length}…`);
+      try{
+        const loaded=await loadPosition(BigInt(owned[i]),p);
+        lastPositions.push(loaded);
+        html+=positionHtml(loaded);
+      }
+      catch(e){html+=`<div class="position"><div class="pos-title">#${esc(owned[i])}</div><div class="status err">${esc(prettyError(e))}</div></div>`}
+    }
+    $("results").innerHTML=html;
+    $("results").classList.remove("hidden");
+    setStatus(`Готово. Текущих позиций: ${owned.length}.`,"ok");
+  }catch(e){console.error(e);setStatus(prettyError(e),"err")}
+}
+
+$("loadId").onclick=runOne;
+$("loadWallet").onclick=runWallet;
+$("tokenId").addEventListener("keydown",e=>{if(e.key==="Enter")runOne()});
+$("wallet").addEventListener("keydown",e=>{if(e.key==="Enter")runWallet()});
+$("feeDays").addEventListener("input",()=>{
+  if(lastPositions.length && !$("results").classList.contains("hidden")){
+    $("results").innerHTML=lastPositions.map(positionHtml).join("");
+  }
+});
+$("tabId").onclick=()=>{
+  $("tabId").classList.add("active");$("tabWallet").classList.remove("active");
+  $("modeId").classList.remove("hidden");$("modeWallet").classList.add("hidden");
+};
+$("tabWallet").onclick=()=>{
+  $("tabWallet").classList.add("active");$("tabId").classList.remove("active");
+  $("modeWallet").classList.remove("hidden");$("modeId").classList.add("hidden");
+};
+</script>
+</body>
+</html>
