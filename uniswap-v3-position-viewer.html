@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Позиции Uniswap V3</title>
+<style>
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --ink:#14201c; --muted:#5d6b66; --line:#d5ddd9;
+  --accent:#0f6b52; --accent-ink:#ffffff; --ok:#0f6b52; --warn:#a15c00; --off:#8a2f2f;
+  --bar:#e3e9e6; --fill:#b9dccf;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1513; --surface:#161e1b; --ink:#e6eeea; --muted:#93a39c; --line:#27332e;
+    --accent:#4fc3a1; --accent-ink:#06130e; --ok:#4fc3a1; --warn:#e0a24a; --off:#e08080;
+    --bar:#202b27; --fill:#1f4a3e;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif;padding:24px 16px 56px}
+main{max-width:860px;margin:0 auto}
+h1{font-size:26px;margin:0 0 4px;font-weight:650;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 20px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+select,input,button{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+input{flex:1 1 280px;min-width:0}
+select{flex:0 0 auto}
+button{cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.opts{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;color:var(--muted);font-size:14px}
+.opts label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.opts input{flex:none;accent-color:var(--accent)}
+#rpcRow{margin-top:10px;display:none}
+#status{margin:16px 0;color:var(--muted);min-height:22px}
+#status.err{color:var(--off)}
+.pos{margin-top:14px}
+.head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.pair{font-size:20px;font-weight:650}
+.pair small{font-weight:400;color:var(--muted);font-size:14px;margin-left:6px}
+.badge{font-size:13px;font-weight:600;padding:2px 10px;border-radius:99px;border:1px solid currentColor}
+.in{color:var(--ok)}.out{color:var(--warn)}.closed{color:var(--off)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.grid h3{margin:0 0 6px;font-size:14px;font-weight:600;color:var(--muted)}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:3px 0;border-bottom:1px dashed var(--line)}
+.kv:last-child{border-bottom:0}
+.kv span:first-child{color:var(--muted)}
+.kv span:last-child{font-variant-numeric:tabular-nums;text-align:right;word-break:break-all}
+.range{margin:16px 0 4px}
+.track{position:relative;height:10px;border-radius:5px;background:var(--bar)}
+.fill{position:absolute;inset:0 auto 0 0;border-radius:5px;background:var(--fill)}
+.mark{position:absolute;top:-4px;width:3px;height:18px;border-radius:2px;background:var(--ink);transform:translateX(-50%)}
+.ends{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}
+.pick{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;width:100%}
+.note{margin-top:28px;color:var(--muted);font-size:13px;max-width:70ch}
+</style>
+</head>
+<body>
+<main>
+  <h1>Позиции Uniswap V3</h1>
+  <p class="sub">Введите tokenId NFT-позиции или адрес кошелька — получите диапазон, объём и начисленные комиссии.</p>
+
+  <div class="panel">
+    <div class="row">
+      <select id="chain" aria-label="Сеть"></select>
+      <input id="q" placeholder="tokenId (например 123456) или адрес 0x…" aria-label="tokenId или адрес" autocomplete="off" spellcheck="false">
+      <button class="primary" id="go">Показать</button>
+    </div>
+    <div class="row" id="rpcRow"><input id="rpc" placeholder="Свой RPC URL (необязательно)" aria-label="RPC URL"></div>
+    <div class="opts">
+      <label><input type="checkbox" id="inv"> Цена в обратную сторону</label>
+      <label><input type="checkbox" id="hideClosed" checked> Скрывать закрытые позиции</label>
+      <label><input type="checkbox" id="customRpc"> Свой RPC</label>
+    </div>
+  </div>
+
+  <div id="status" role="status"></div>
+  <div id="out"></div>
+
+  <p class="note">Данные читаются напрямую из блокчейна через публичные RPC. Комиссии рассчитываются так же, как это делает контракт при collect(): накопленные tokensOwed плюс прирост по feeGrowth за текущий момент. Стоимость в долларах не считается — показаны количества токенов.</p>
+</main>
+
+<script>
+const CHAINS = {
+  eth:  {name:'Ethereum', rpc:'https://ethereum-rpc.publicnode.com', pm:'0xC36442b4a4522E871399CD717aBDD847Ab11FE88', f:'0x1F98431c8aD98523631AE4a59f267346ea31F984'},
+  arb:  {name:'Arbitrum', rpc:'https://arb1.arbitrum.io/rpc', pm:'0xC36442b4a4522E871399CD717aBDD847Ab11FE88', f:'0x1F98431c8aD98523631AE4a59f267346ea31F984'},
+  op:   {name:'Optimism', rpc:'https://mainnet.optimism.io', pm:'0xC36442b4a4522E871399CD717aBDD847Ab11FE88', f:'0x1F98431c8aD98523631AE4a59f267346ea31F984'},
+  poly: {name:'Polygon', rpc:'https://polygon-bor-rpc.publicnode.com', pm:'0xC36442b4a4522E871399CD717aBDD847Ab11FE88', f:'0x1F98431c8aD98523631AE4a59f267346ea31F984'},
+  base: {name:'Base', rpc:'https://mainnet.base.org', pm:'0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1', f:'0x33128a8fC17869897dcE68Ed026d694621f6FDfD'},
+  bnb:  {name:'BNB Chain', rpc:'https://bsc-dataseed.binance.org', pm:'0x7b8A01B39D58278b5DE7e48c8449c9f4F5170613', f:'0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7'}
+};
+const $ = id => document.getElementById(id);
+const M = 2n ** 256n, Q128 = 2n ** 128n;
+let lastData = [], lastChain = null;
+
+$('chain').innerHTML = Object.entries(CHAINS).map(([k, c]) => `<option value="${k}">${c.name}</option>`).join('');
+$('customRpc').onchange = e => { $('rpcRow').style.display = e.target.checked ? 'flex' : 'none'; };
+
+/* ---------- RPC и ABI ---------- */
+let RPC = '';
+async function call(to, data) {
+  const r = await fetch(RPC, {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({jsonrpc:'2.0', id:1, method:'eth_call', params:[{to, data}, 'latest']})});
+  const j = await r.json();
+  if (j.error) throw new Error(j.error.message);
+  return j.result;
+}
+const wUint = x => BigInt(x).toString(16).padStart(64, '0');
+const wInt = x => ((BigInt(x) + M) % M).toString(16).padStart(64, '0');
+const wAddr = a => a.toLowerCase().replace('0x', '').padStart(64, '0');
+const words = h => (h.slice(2).match(/.{64}/g) || []).map(s => BigInt('0x' + s));
+const signed = x => x >= 2n ** 255n ? x - M : x;
+const toAddr = x => '0x' + x.toString(16).padStart(40, '0');
+const sub = (a, b) => (((a - b) % M) + M) % M;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const short = a => a.slice(0, 6) + '…' + a.slice(-4);
+
+const tokenCache = {};
+async function tokenMeta(addr) {
+  const k = RPC + addr;
+  if (tokenCache[k]) return tokenCache[k];
+  let dec = 18, sym = short(addr);
+  try { dec = Number(BigInt(await call(addr, '0x313ce567'))); } catch {}
+  try {
+    const h = (await call(addr, '0x95d89b41')).slice(2);
+    if (h.length === 64) sym = hexToStr(h);
+    else { const len = parseInt(h.slice(64, 128), 16); sym = hexToStr(h.slice(128, 128 + len * 2)); }
+  } catch {}
+  return tokenCache[k] = {dec, sym: sym || short(addr)};
+}
+function hexToStr(h) {
+  let s = '';
+  for (let i = 0; i < h.length; i += 2) { const c = parseInt(h.substr(i, 2), 16); if (c) s += String.fromCharCode(c); }
+  return s.trim();
+}
+
+/* ---------- Данные позиции ---------- */
+async function loadPosition(c, id) {
+  const x = words(await call(c.pm, '0x99fbab88' + wUint(id)));
+  const p = {id: String(id), token0: toAddr(x[2]), token1: toAddr(x[3]), fee: Number(x[4]),
+    tl: Number(signed(x[5])), tu: Number(signed(x[6])), L: x[7], fg0: x[8], fg1: x[9], ow0: x[10], ow1: x[11]};
+
+  const [t0, t1, owner, pool] = await Promise.all([
+    tokenMeta(p.token0), tokenMeta(p.token1),
+    call(c.pm, '0x6352211e' + wUint(id)).then(r => toAddr(BigInt(r))).catch(() => null),
+    call(c.f, '0x1698ee82' + wAddr(p.token0) + wAddr(p.token1) + wUint(p.fee)).then(r => toAddr(BigInt(r)))
+  ]);
+  if (/^0x0+$/.test(pool)) throw new Error('Пул для этой позиции не найден');
+
+  const [s0, g0, g1, lo, up] = await Promise.all([
+    call(pool, '0x3850c7bd'), call(pool, '0xf3058399'), call(pool, '0x46141319'),
+    call(pool, '0xf30dba93' + wInt(p.tl)), call(pool, '0xf30dba93' + wInt(p.tu))
+  ]);
+  const slot = words(s0), sqrtP = slot[0], tick = Number(signed(slot[1]));
+  const G0 = BigInt(g0), G1 = BigInt(g1), lw = words(lo), uw = words(up);
+
+  const inside = (G, lOut, uOut) => {
+    const below = tick >= p.tl ? lOut : sub(G, lOut);
+    const above = tick < p.tu ? uOut : sub(G, uOut);
+    return sub(sub(G, below), above);
+  };
+  const fee0 = p.ow0 + (p.L * sub(inside(G0, lw[2], uw[2]), p.fg0)) / Q128;
+  const fee1 = p.ow1 + (p.L * sub(inside(G1, lw[3], uw[3]), p.fg1)) / Q128;
+
+  const L = Number(p.L), sp = Number(sqrtP) / 2 ** 96;
+  const sa = Math.pow(1.0001, p.tl / 2), sb = Math.pow(1.0001, p.tu / 2);
+  let a0 = 0, a1 = 0;
+  if (tick < p.tl) a0 = L * (1 / sa - 1 / sb);
+  else if (tick >= p.tu) a1 = L * (sb - sa);
+  else { a0 = L * (1 / sp - 1 / sb); a1 = L * (sp - sa); }
+
+  return {...p, t0, t1, owner, pool, tick,
+    amt0: a0 / 10 ** t0.dec, amt1: a1 / 10 ** t1.dec,
+    fee0: Number(fee0) / 10 ** t0.dec, fee1: Number(fee1) / 10 ** t1.dec,
+    closed: p.L === 0n && fee0 === 0n && fee1 === 0n,
+    status: p.L === 0n ? 'closed' : (tick >= p.tl && tick < p.tu ? 'in' : 'out')};
+}
+
+/* ---------- Форматирование и вывод ---------- */
+function num(n) {
+  if (!isFinite(n)) return '∞';
+  if (n === 0) return '0';
+  const a = Math.abs(n);
+  if (a >= 1000) return n.toLocaleString('ru-RU', {maximumFractionDigits: 2});
+  if (a >= 1) return n.toLocaleString('ru-RU', {maximumFractionDigits: 4});
+  return n.toLocaleString('ru-RU', {maximumSignificantDigits: 5, maximumFractionDigits: 12});
+}
+const tickPrice = (t, d) => Math.pow(1.0001, t) * 10 ** (d.t0.dec - d.t1.dec);
+
+function card(d, inv) {
+  let pl = tickPrice(d.tl, d), pu = tickPrice(d.tu, d), pc = tickPrice(d.tick, d);
+  let unit = `${d.t1.sym} за ${d.t0.sym}`;
+  if (inv) { [pl, pu] = [1 / pu, 1 / pl]; pc = 1 / pc; unit = `${d.t0.sym} за ${d.t1.sym}`; }
+  const span = d.tu - d.tl;
+  let pos = Math.min(100, Math.max(0, (d.tick - d.tl) / span * 100));
+  if (inv) pos = 100 - pos;
+  const label = {in: 'В диапазоне', out: 'Вне диапазона', closed: 'Закрыта'}[d.status];
+  const kv = (k, v) => `<div class="kv"><span>${k}</span><span>${v}</span></div>`;
+  return `<section class="panel pos">
+    <div class="head">
+      <div class="pair">${esc(d.t0.sym)} / ${esc(d.t1.sym)}<small>${d.fee / 10000}% · #${esc(d.id)}</small></div>
+      <span class="badge ${d.status}">${label}</span>
+    </div>
+    <div class="range" aria-label="Положение цены в диапазоне">
+      <div class="track"><div class="fill" style="width:${pos}%"></div><div class="mark" style="left:${pos}%"></div></div>
+      <div class="ends"><span>${num(pl)}</span><span>сейчас ${num(pc)}</span><span>${num(pu)}</span></div>
+    </div>
+    <div class="grid" style="margin-top:16px">
+      <div><h3>Объём позиции</h3>
+        ${kv(esc(d.t0.sym), num(d.amt0))}${kv(esc(d.t1.sym), num(d.amt1))}${kv('Ликвидность', d.L.toString())}</div>
+      <div><h3>Начисленные комиссии</h3>
+        ${kv(esc(d.t0.sym), num(d.fee0))}${kv(esc(d.t1.sym), num(d.fee1))}</div>
+      <div><h3>Диапазон</h3>
+        ${kv('Нижняя цена', num(pl))}${kv('Верхняя цена', num(pu))}${kv('Единица', esc(unit))}${kv('Тики', d.tl + ' … ' + d.tu)}</div>
+      <div><h3>Адреса</h3>
+        ${kv('Владелец', d.owner ? short(d.owner) : '—')}${kv('Пул', short(d.pool))}</div>
+    </div>
+  </section>`;
+}
+
+function render() {
+  const inv = $('inv').checked, hide = $('hideClosed').checked;
+  let list = lastData;
+  const wallet = list.length > 1;
+  if (wallet && hide) list = list.filter(d => !d.closed);
+  $('out').innerHTML = list.map(d => card(d, inv)).join('') ||
+    (lastData.length ? '<p class="sub">Все позиции закрыты. Снимите галочку «Скрывать закрытые позиции».</p>' : '');
+}
+
+function setStatus(t, err) { const s = $('status'); s.textContent = t; s.className = err ? 'err' : ''; }
+
+async function run() {
+  const q = $('q').value.trim();
+  const c = CHAINS[$('chain').value];
+  RPC = ($('customRpc').checked && $('rpc').value.trim()) || c.rpc;
+  $('out').innerHTML = ''; lastData = [];
+  if (!q) return setStatus('Введите tokenId или адрес кошелька.', true);
+  $('go').disabled = true;
+  try {
+    if (/^0x[0-9a-fA-F]{40}$/.test(q)) {
+      setStatus('Ищу позиции кошелька…');
+      const n = Number(BigInt(await call(c.pm, '0x70a08231' + wAddr(q))));
+      if (!n) { setStatus('На этом кошельке нет NFT-позиций Uniswap V3 в выбранной сети.'); return; }
+      const cap = Math.min(n, 50);
+      const ids = [];
+      for (let i = 0; i < cap; i++) ids.push(BigInt(await call(c.pm, '0x2f745c59' + wAddr(q) + wUint(i))));
+      for (let i = 0; i < ids.length; i++) {
+        setStatus(`Загружаю позицию ${i + 1} из ${ids.length}…`);
+        try { lastData.push(await loadPosition(c, ids[i])); } catch (e) { console.warn(ids[i], e); }
+      }
+      setStatus(`Позиций на кошельке: ${n}` + (n > cap ? ` (показаны первые ${cap})` : '') + '.');
+    } else if (/^\d+$/.test(q)) {
+      setStatus('Загружаю позицию…');
+      lastData = [await loadPosition(c, BigInt(q))];
+      setStatus('');
+    } else {
+      return setStatus('Нужен tokenId (число) или адрес вида 0x… из 40 символов.', true);
+    }
+    render();
+  } catch (e) {
+    setStatus('Не удалось получить данные: ' + (e.message || e) + '. Проверьте сеть и tokenId, либо укажите свой RPC.', true);
+  } finally { $('go').disabled = false; }
+}
+
+$('go').onclick = run;
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+$('inv').onchange = render;
+$('hideClosed').onchange = render;
+</script>
+</body>
+</html>
